@@ -149,14 +149,6 @@ const UI = (() => {
               📌 Do this at: ${r.unlockLabel}
             </div>
           ` : ''}
-          ${r.boostQuests && r.boostQuests.length ? `
-            <div style="margin:8px 0 0;padding:8px 12px;background:linear-gradient(90deg,#fff8d0,transparent);border-left:3px solid gold;border-radius:8px;font-size:12px;">
-              <strong style="color:#b08400;">💡 Shortcut: do these quests for free XP →</strong>
-              <ul style="margin:4px 0 0 18px;padding:0;">
-                ${r.boostQuests.map(b => `<li><strong>${esc(b.name)}</strong> = +${b.xp.toLocaleString()} ${b.skillIcon || ''} ${esc(b.skill)} XP</li>`).join('')}
-              </ul>
-            </div>
-          ` : ''}
           <p style="margin:6px 0 0;color:var(--text-soft);">${r.detail || ''}</p>
           <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;">
             ${r.wiki ? `<a class="wiki-link" target="_blank" href="${r.wiki}">Wiki →</a>` : ''}

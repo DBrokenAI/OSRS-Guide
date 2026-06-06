@@ -157,6 +157,7 @@ const QUESTS = [
 
   { id: 'witchs_house', name: "Witch's House", members: false, length: 'Short',
     reqs: {}, practicalCombat: 30,
+    xpRewards: { hitpoints: 6325 },
     rewards: ['6,325 Hitpoints XP (instant lvl 22+)', 'Maze key'],
     why: 'Huge HP XP for tiny effort. Consecutive Shapeshifter fight (lvl 19→30→42→53) — bring rune scimmie + sharks. Doable at CB 30+.', priority: 1 },
 
@@ -167,6 +168,7 @@ const QUESTS = [
 
   { id: 'priest_in_peril', name: 'Priest in Peril', members: true, length: 'Medium',
     reqs: {}, practicalCombat: 15,
+    xpRewards: { prayer: 1406 },
     rewards: ['1,406 Prayer XP', 'Access to Morytania (huge unlock)'],
     why: 'Two lvl-30 Temple Guard fights — safespottable. UNLOCKS Morytania: Canifis, Burgh de Rott, Mort Myre, Slayer Tower, Ectofuntus, dozens of other quests.', priority: 1 },
 
@@ -175,40 +177,48 @@ const QUESTS = [
     why: 'Prereq for several Morytania quests including In Aid of the Myreque chain.', priority: 2 },
 
   { id: 'druidic_ritual', name: 'Druidic Ritual', members: true, length: 'Very short',
-    reqs: {}, rewards: ['250 Herblore XP (level 3) — UNLOCKS HERBLORE'],
+    reqs: {}, xpRewards: { herblore: 250 },
+    rewards: ['250 Herblore XP (level 3) — UNLOCKS HERBLORE'],
     why: '🔥 Without this you literally cannot train Herblore. Do it the day you become a member.', priority: 1 },
 
   { id: 'tree_gnome_village', name: 'Tree Gnome Village', members: true, length: 'Medium',
     reqs: {}, practicalCombat: 25,
+    xpRewards: { attack: 11450 },
     rewards: ['11,450 Attack XP', 'Spirit tree teleport network 🌳', 'Royal seed pod (later)'],
     why: 'Huge Attack XP + spirit tree teleports (massive QoL). Khazard Warlord (lvl 112) is fully safespottable with ranged — beatable at CB 22+ with patience.', priority: 1 },
 
   { id: 'waterfall_quest', name: 'Waterfall Quest', members: true, length: 'Medium',
     reqs: {}, practicalCombat: 25,
+    xpRewards: { attack: 13750, strength: 13750 },
     rewards: ['13,750 Attack XP (instant lvl 30)', '13,750 Strength XP (instant lvl 30)', 'Gold ore, gems'],
     why: 'No fights required — just run past enemies (lvl 84/86). Most efficient combat start in the game. Bring food.', priority: 1 },
 
   { id: 'fight_arena', name: 'Fight Arena', members: true, length: 'Medium',
     reqs: {}, practicalCombat: 40,
+    xpRewards: { attack: 12175, thieving: 2175 },
     rewards: ['12,175 Attack XP', '2,175 Thieving XP'],
     why: 'Stack with Waterfall + Tree Gnome Village — pushes Attack to 40 for rune scim. Bouncer (lvl 137) is safespottable with halberd/ranged.', priority: 1 },
 
   { id: 'death_plateau', name: 'Death Plateau', members: true, length: 'Short',
-    reqs: {}, rewards: ['3,000 Attack XP', 'Free climbing boots (+1 Str)'],
+    reqs: {}, xpRewards: { attack: 3000 },
+    rewards: ['3,000 Attack XP', 'Free climbing boots (+1 Str)'],
     why: 'Climbing boots = best-in-slot Strength boots until dragon boots (60 def).', priority: 1 },
 
   { id: 'vampyre_slayer', name: 'Vampyre Slayer', members: false, length: 'Short',
     reqs: {}, practicalCombat: 20,
+    xpRewards: { attack: 4825 },
     rewards: ['4,825 Attack XP'],
     why: 'F2P! Fight Count Draynor (lvl 34) — safespot with stake. Skippable if you already did Waterfall.', priority: 3 },
 
   { id: 'grand_tree', name: 'The Grand Tree', members: true, length: 'Medium',
     reqs: {}, practicalCombat: 35,
+    xpRewards: { magic: 18400, agility: 12675, attack: 18400 },
     rewards: ['18,400 Magic + 12,675 Agility + 18,400 Attack XP', 'More spirit tree access'],
     why: 'Required for Monkey Madness. Black Demon (lvl 100) is fully safespottable behind a pillar — doable at CB 35+ with ranged or magic.', priority: 1 },
 
   { id: 'monkey_madness_1', name: 'Monkey Madness I', members: true, length: 'Long',
     reqs: { skill: { attack: 60 }, quests: ['grand_tree', 'tree_gnome_village'] }, practicalCombat: 65,
+    xpRewards: { attack: 35000, defence: 35000 },
     rewards: ['🗡️ Dragon Scimitar (best one-handed weapon until 70 Att Whip)', '35,000 Attack + Defence XP', 'Mage of Zamorak teleport'],
     why: 'DRAGON SCIM = single biggest combat upgrade until Abyssal Whip. Jungle Demon fight (lvl 195, hits 32s, multicombat) — bring 43+ Prayer + Protect from Magic. Wiki recommends combat 65.', priority: 1 },
 
@@ -225,11 +235,13 @@ const QUESTS = [
 
   { id: 'mountain_daughter', name: 'Mountain Daughter', members: true, length: 'Medium',
     reqs: { skill: { agility: 20 } }, practicalCombat: 40,
+    xpRewards: { strength: 1000, attack: 1000, prayer: 1000 },
     rewards: ['1,000 Strength + Attack XP', 'Prayer XP', 'Asgarnian Ice Dungeon shortcut'],
     why: 'The Kendal (lvl 70) — safespottable with ranged. Wiki recommends combat 40.', priority: 3 },
 
   { id: 'horror_from_the_deep', name: 'Horror from the Deep', members: true, length: 'Medium',
     reqs: { skill: { agility: 35 } }, practicalCombat: 40,
+    xpRewards: { magic: 4662, defence: 4662 },
     rewards: ['God books (+8 prayer when worn)', '4,662 Magic + Defence XP'],
     why: 'God book = +8 prayer bonus. Dagannoth Mother fight (lvl 100) — change combat style based on her form.', priority: 2 },
 
@@ -259,6 +271,7 @@ const QUESTS = [
   // ----- Money-flow quests -----
   { id: 'fairytale_1', name: "Fairytale I — Growing Pains", members: true, length: 'Medium',
     reqs: { quests: ['lost_city', 'nature_spirit'] },
+    xpRewards: { attack: 2000, farming: 2000, herblore: 2000 },
     rewards: ['2,000 Attack + Farming + Herblore XP', 'Magic secateurs (+10% herb yield)'],
     why: 'Magic secateurs = 10% more herbs forever. Big long-term GP.', priority: 2 },
 
@@ -276,6 +289,7 @@ const QUESTS = [
   { id: 'cabin_fever', name: 'Cabin Fever', members: true, length: 'Long',
     reqs: { skill: { agility: 42, crafting: 45, smithing: 50, ranged: 40 },
             quests: ['rum_deal', 'pirates_treasure'] },
+    xpRewards: { agility: 7000, smithing: 7000 },
     rewards: ['7,000 Agility XP', '7,000 Smithing XP', 'Book O\' Piracy'],
     why: 'Big agility XP. Wait until you have the stats.', priority: 3 },
 
@@ -289,7 +303,8 @@ const QUESTS = [
     why: 'Gating quest — get it out of the way.', priority: 3 },
 
   { id: 'plague_city', name: 'Plague City', members: true, length: 'Medium',
-    reqs: {}, rewards: ['West Ardougne access', '2,425 Mining XP'],
+    reqs: {}, xpRewards: { mining: 2425 },
+    rewards: ['West Ardougne access', '2,425 Mining XP'],
     why: 'Unlocks Ardougne areas + diary tasks.', priority: 3 },
 
   { id: 'shield_of_arrav', name: 'Shield of Arrav', members: false, length: 'Medium',
@@ -303,11 +318,13 @@ const QUESTS = [
   { id: 'rum_deal', name: 'Rum Deal', members: true, length: 'Medium',
     reqs: { skill: { crafting: 42, fishing: 50, farming: 40, prayer: 47 },
             quests: ['priest_in_peril', 'zogre_flesh_eaters'] },
+    xpRewards: { prayer: 7000, farming: 7000, fishing: 7000 },
     rewards: ['7,000 Prayer XP', '7,000 Farming XP', '7,000 Fishing XP'],
     why: 'Huge prayer XP. Save for when you have the reqs.', priority: 3 },
 
   { id: 'tai_bwo', name: 'Tai Bwo Wannai Trio', members: true, length: 'Long',
     reqs: { skill: { agility: 15, cooking: 30, fishing: 5 } },
+    xpRewards: { cooking: 5000, fishing: 5000, attack: 5000 },
     rewards: ['5,000 Cooking + Fishing + Attack XP', 'Karambwan access'],
     why: 'Karambwans = best food/inv ratio. Pre-req for late-game PvM food.', priority: 2 },
 ];

@@ -338,6 +338,38 @@ const Recommender = (() => {
       });
     }
 
+    // ===== 4b. XP-SHORTCUT QUESTS — surface every uncompleted quest that gives
+    //          XP in a skill she's still leveling. She marks done → XP credited →
+    //          next thing unlocks. Fully progressive chain. =====
+    const xpShortcutSet = new Set();
+    for (const q of QUESTS) {
+      if (!q.xpRewards) continue;
+      if (completedQuestIds.has(q.id)) continue;
+      if (!questQualifies(q, stats, completedQuestIds)) continue;
+      // Does the quest target a skill she's still leveling (lvl < 70)?
+      const helpful = Object.entries(q.xpRewards).some(([sid, xp]) => {
+        const cur = stats.skills[sid]?.level || 1;
+        return cur < 70 && xp >= 100;
+      });
+      if (!helpful) continue;
+      if (recs.some(r => r.id === q.id)) continue;
+      xpShortcutSet.add(q.id);
+
+      const xpLines = Object.entries(q.xpRewards).map(([sid, xp]) => {
+        const m = SKILL_META.find(mm => mm.id === sid);
+        return `${m?.icon || ''} +${xp.toLocaleString()} ${m?.name || sid}`;
+      }).join(' · ');
+
+      recs.push({
+        id: q.id, type: 'quest',
+        priority: q.priority || 3,
+        icon: '✨', tag: 'gold', cat: 'quest',
+        title: `${q.name} — ${xpLines}`,
+        detail: `${q.why || ''} <br><strong>📊 Free XP:</strong> ${xpLines}. Mark done to credit it instantly.`,
+        wiki: WIKI(q.name),
+      });
+    }
+
     // ===== 5. CURRENT BEST METHOD for her 1-2 weakest non-combat skills =====
     // Show at any level until 99 (drops off only when she's maxed)
     const weakSkills = SKILL_META
@@ -376,12 +408,12 @@ const Recommender = (() => {
       }
     }
 
-    // Dedupe by title, sort by priority, cap at 8
+    // Dedupe by title, sort by priority. Cap higher so the chain flows.
     const seen = new Set();
     return recs
       .filter(r => !seen.has(r.title) && seen.add(r.title))
       .sort((a, b) => (a.priority || 9) - (b.priority || 9))
-      .slice(0, 8);
+      .slice(0, 20);
   }
 
   function formatMissing(missing) {
