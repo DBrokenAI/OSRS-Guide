@@ -328,12 +328,17 @@ const Recommender = (() => {
       .slice(0, 5);
     for (const t of readyTasks) {
       if (recs.some(r => r.id === t.id)) continue;
+      // Dynamic course pick for Graceful pieces based on her current Agility
+      let howText = t.how || '';
+      if (t.id && t.id.startsWith('graceful_') && t.marksNeeded) {
+        howText = gracefulCourseFor(stats.skills.agility?.level || 1, t.marksNeeded);
+      }
       recs.push({
         id: t.id, type: 'master',
         priority: t.priority || 3,
         icon: t.icon, tag: t.priority === 1 ? 'gold' : 'green', cat: t.category,
         title: t.name,
-        detail: t.why + (t.how ? `<br><em>How:</em> ${t.how}` : ''),
+        detail: t.why + (howText ? `<br><em>How:</em> ${howText}` : ''),
         wiki: t.wiki ? WIKI(t.wiki) : null,
       });
     }

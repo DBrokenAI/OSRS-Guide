@@ -56,6 +56,26 @@ function levelFromXp(xp) {
   return 1;
 }
 
+// Pick the single best Marks-of-Grace course for HER current Agility level
+function gracefulCourseFor(agilityLevel, marksNeeded) {
+  if (agilityLevel < 10) {
+    return `⚠️ <strong>You're Agility ${agilityLevel} — rooftops need lvl 10+ to drop Marks of Grace.</strong> ` +
+           `First, train Agility at the <strong>Gnome Stronghold course</strong> (Tree Gnome Stronghold) until level 10. ` +
+           `Then come back here: at level 10 you'll do Draynor Rooftop (~13 marks/hr → ~${(marksNeeded/13).toFixed(1)} hrs for ${marksNeeded} marks). ` +
+           `Buy from Grace at Rogues' Den (Burthorpe basement).`;
+  }
+  let course, marksPerHr;
+  if      (agilityLevel < 30) { course = 'Draynor Rooftop';   marksPerHr = 13; }
+  else if (agilityLevel < 40) { course = 'Varrock Rooftop';   marksPerHr = 17; }
+  else if (agilityLevel < 60) { course = 'Canifis Rooftop';   marksPerHr = 20; }
+  else if (agilityLevel < 80) { course = "Seers' Rooftop";    marksPerHr = 24; }
+  else if (agilityLevel < 90) { course = 'Rellekka Rooftop';  marksPerHr = 28; }
+  else                        { course = 'Ardougne Rooftop'; marksPerHr = 30; }
+  const hrs = (marksNeeded / marksPerHr).toFixed(1);
+  return `At your Agility ${agilityLevel}, do <strong>${course}</strong> (~${marksPerHr} marks/hr → ~${hrs} hrs to earn ${marksNeeded} marks). ` +
+         `Then buy from Grace at Rogues' Den (Burthorpe basement).`;
+}
+
 // ---------- Combat level formula ----------
 function combatLevel(s) {
   const base = 0.25 * (s.defence + s.hitpoints + Math.floor(s.prayer / 2));
@@ -586,44 +606,38 @@ const MASTER_TASKS = [
   // it feels natural — between quests, slayer breaks, etc.
   { id: 'graceful_gloves', category: 'gear', icon: '🧤', priority: 1,
     name: 'Graceful gloves (30 marks)',
-    reqs: {},
+    reqs: {}, marksNeeded: 30,
     why: 'Cheapest piece. Quick first win.',
-    how: '30 marks. Best course by Agility level:<br>• 10-29 → Draynor (~2.3 hrs)<br>• 30-39 → Varrock (~1.8 hrs)<br>• 40+ → Canifis (~1.5 hrs)<br>• 60+ → Seers\' (~1.25 hrs).<br>Buy from Grace at Rogues\' Den (Burthorpe basement).',
     wiki: 'Graceful gloves' },
 
   { id: 'graceful_hood', category: 'gear', icon: '👒', priority: 2,
     name: 'Graceful hood (35 marks)',
-    reqs: {},
+    reqs: {}, marksNeeded: 35,
     why: 'Replaces full helms for travel.',
-    how: '35 marks. Best course by Agility level:<br>• 10-29 → Draynor (~2.7 hrs)<br>• 30-39 → Varrock (~2 hrs)<br>• 40+ → Canifis (~1.75 hrs)<br>• 60+ → Seers\' (~1.5 hrs).',
     wiki: 'Graceful hood' },
 
   { id: 'graceful_boots', category: 'gear', icon: '👢', priority: 3,
     name: 'Graceful boots (40 marks)',
-    reqs: {},
+    reqs: {}, marksNeeded: 40,
     why: 'Stacking weight savings start adding up.',
-    how: '40 marks:<br>• 30-39 → Varrock (~2.3 hrs)<br>• 40-59 → Canifis (~2 hrs)<br>• 60+ → Seers\' (~1.7 hrs)<br>• 70+ → Pollnivneach (~1.5 hrs).',
     wiki: 'Graceful boots' },
 
   { id: 'graceful_cape', category: 'gear', icon: '🎀', priority: 3,
     name: 'Graceful cape (40 marks)',
-    reqs: {},
+    reqs: {}, marksNeeded: 40,
     why: 'Replaces team / regular cape until skill capes.',
-    how: '40 marks:<br>• 40-59 → Canifis (~2 hrs)<br>• 60-79 → Seers\' (~1.7 hrs)<br>• 80+ → Rellekka (~1.4 hrs).',
     wiki: 'Graceful cape' },
 
   { id: 'graceful_top', category: 'gear', icon: '👚', priority: 4,
     name: 'Graceful top (55 marks)',
-    reqs: {},
+    reqs: {}, marksNeeded: 55,
     why: 'Biggest single weight save (-4kg).',
-    how: '55 marks (the big one):<br>• 40-59 → Canifis (~2.75 hrs)<br>• 60-79 → Seers\' (~2.3 hrs)<br>• 80-89 → Rellekka (~2 hrs)<br>• 90+ → Ardougne (~1.8 hrs).',
     wiki: 'Graceful top' },
 
   { id: 'graceful_legs', category: 'gear', icon: '👖', priority: 5,
     name: 'Graceful legs (60 marks) — last piece, FULL SET BONUS',
-    reqs: {},
+    reqs: {}, marksNeeded: 60,
     why: '🌸 Wear the full set = +30% run energy restore rate. Game-changer.',
-    how: '60 marks (final stretch):<br>• 60-79 → Seers\' (~2.5 hrs)<br>• 80-89 → Rellekka (~2.1 hrs)<br>• 90+ → Ardougne (~2 hrs).',
     wiki: 'Graceful legs' },
 
   // ⛏️ Prospector — split into 4 pieces (370 nuggets total). MLM passive drop.
