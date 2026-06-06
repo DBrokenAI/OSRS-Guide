@@ -331,7 +331,8 @@ const Recommender = (() => {
       // Dynamic course pick for Graceful pieces based on her current Agility
       let howText = t.how || '';
       if (t.id && t.id.startsWith('graceful_') && t.marksNeeded) {
-        howText = gracefulCourseFor(stats.skills.agility?.level || 1, t.marksNeeded);
+        const isGloves = t.id === 'graceful_gloves';
+        howText = gracefulCourseFor(stats.skills.agility?.level || 1, t.marksNeeded, isGloves);
       }
       recs.push({
         id: t.id, type: 'master',

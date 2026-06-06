@@ -56,23 +56,28 @@ function levelFromXp(xp) {
   return 1;
 }
 
-// Pick the single best Marks-of-Grace course for HER current Agility level
-function gracefulCourseFor(agilityLevel, marksNeeded) {
-  if (agilityLevel < 10) {
+// Pick the single best Marks-of-Grace course for HER current Agility level.
+// isFirstPiece = the gloves card; only it shows the "train to 10 first" warning since
+// by the time she's at later pieces she'll already be past level 10.
+function gracefulCourseFor(agilityLevel, marksNeeded, isFirstPiece) {
+  if (isFirstPiece && agilityLevel < 10) {
     return `⚠️ <strong>You're Agility ${agilityLevel} — rooftops need lvl 10+ to drop Marks of Grace.</strong> ` +
            `First, train Agility at the <strong>Gnome Stronghold course</strong> (Tree Gnome Stronghold) until level 10. ` +
            `Then come back here: at level 10 you'll do Draynor Rooftop (~13 marks/hr → ~${(marksNeeded/13).toFixed(1)} hrs for ${marksNeeded} marks). ` +
            `Buy from Grace at Rogues' Den (Burthorpe basement).`;
   }
-  let course, marksPerHr;
-  if      (agilityLevel < 30) { course = 'Draynor Rooftop';   marksPerHr = 13; }
-  else if (agilityLevel < 40) { course = 'Varrock Rooftop';   marksPerHr = 17; }
-  else if (agilityLevel < 60) { course = 'Canifis Rooftop';   marksPerHr = 20; }
-  else if (agilityLevel < 80) { course = "Seers' Rooftop";    marksPerHr = 24; }
-  else if (agilityLevel < 90) { course = 'Rellekka Rooftop';  marksPerHr = 28; }
-  else                        { course = 'Ardougne Rooftop'; marksPerHr = 30; }
+  // Floor at Draynor for sub-10 (she'll be 10+ by the time she sees these pieces)
+  let course, marksPerHr, lvlNote = '';
+  const effLvl = Math.max(10, agilityLevel);
+  if (agilityLevel < 10) lvlNote = ` (once you hit Agility 10)`;
+  if      (effLvl < 30) { course = 'Draynor Rooftop';   marksPerHr = 13; }
+  else if (effLvl < 40) { course = 'Varrock Rooftop';   marksPerHr = 17; }
+  else if (effLvl < 60) { course = 'Canifis Rooftop';   marksPerHr = 20; }
+  else if (effLvl < 80) { course = "Seers' Rooftop";    marksPerHr = 24; }
+  else if (effLvl < 90) { course = 'Rellekka Rooftop';  marksPerHr = 28; }
+  else                  { course = 'Ardougne Rooftop'; marksPerHr = 30; }
   const hrs = (marksNeeded / marksPerHr).toFixed(1);
-  return `At your Agility ${agilityLevel}, do <strong>${course}</strong> (~${marksPerHr} marks/hr → ~${hrs} hrs to earn ${marksNeeded} marks). ` +
+  return `Do <strong>${course}</strong>${lvlNote} (~${marksPerHr} marks/hr → ~${hrs} hrs to earn ${marksNeeded} marks). ` +
          `Then buy from Grace at Rogues' Den (Burthorpe basement).`;
 }
 
