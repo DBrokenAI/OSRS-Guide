@@ -452,6 +452,29 @@ const Recommender = (() => {
     return out;
   }
 
+  // For each missing skill, build a "where to train" hint with the current tier
+  function trainingHintsForGap(missing, stats) {
+    const out = [];
+    for (const m of missing) {
+      if (m.kind !== 'skill') continue;
+      const skillId = SKILL_META.find(mm => mm.name === m.name)?.id || m.name.toLowerCase();
+      const tier = currentTier(skillId, m.cur);
+      if (!tier) continue;
+      out.push({
+        skill: m.name,
+        skillIcon: m.icon,
+        from: m.cur,
+        to: m.need,
+        method: tier.name,
+        where: tier.where,
+        xpHr: tier.xpHr,
+        switchAt: tier.to,
+        why: tier.why,
+      });
+    }
+    return out;
+  }
+
   // "Coming up next" — ALL locked items, sorted by closest. Caller controls how many.
   function comingUpRecommendations(stats, completedQuestIds, limit = 30) {
     const upcoming = [];
@@ -462,6 +485,7 @@ const Recommender = (() => {
         icon: '📜', cat: 'quest', tag: 'locked',
         title: q.name,
         unlockLabel: formatMissing(q._gap.missing),
+        trainingHints: trainingHintsForGap(q._gap.missing, stats),
         boostQuests: boostQuestsForGap(q._gap.missing, completedQuestIds),
         detail: q.why,
         wiki: WIKI(q.name),
@@ -475,6 +499,7 @@ const Recommender = (() => {
         icon: t.icon, cat: t.category, tag: 'locked',
         title: t.name,
         unlockLabel: formatMissing(t._gap.missing),
+        trainingHints: trainingHintsForGap(t._gap.missing, stats),
         boostQuests: boostQuestsForGap(t._gap.missing, completedQuestIds),
         detail: t.why,
         wiki: t.wiki ? WIKI(t.wiki) : null,

@@ -149,6 +149,18 @@ const UI = (() => {
               📌 Do this at: ${r.unlockLabel}
             </div>
           ` : ''}
+          ${r.trainingHints && r.trainingHints.length ? `
+            <div style="margin:8px 0 0;padding:8px 12px;background:linear-gradient(90deg,#e8f5ff,transparent);border-left:3px solid #5ba6e8;border-radius:8px;font-size:13px;">
+              <strong style="color:#2b6fc4;">🎓 Where to train right now:</strong>
+              ${r.trainingHints.map(h => `
+                <div style="margin:6px 0 0;padding:4px 0;">
+                  <strong>${h.skillIcon || ''} ${esc(h.skill)} ${h.from} → ${h.to}:</strong><br>
+                  <span style="color:var(--text-soft);">${esc(h.method)} @ ${esc(h.where || '')}</span><br>
+                  <span style="color:var(--text-faint);font-size:12px;">${esc(h.xpHr || '')} xp/hr — switch at level ${h.switchAt} to the next method</span>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
           <p style="margin:6px 0 0;color:var(--text-soft);">${r.detail || ''}</p>
           <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;">
             ${r.wiki ? `<a class="wiki-link" target="_blank" href="${r.wiki}">Wiki →</a>` : ''}
