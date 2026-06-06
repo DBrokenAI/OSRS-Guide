@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>bvels10 — OSRS Beginner Guide 💖</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<canvas id="sakura-canvas"></canvas>
+
+<header class="topbar">
+  <div class="title-block">
+    <h1 class="brand">✨ bvels10's Adventure Guide ✨</h1>
+    <div class="subtitle">your personal OSRS roadmap, sparkles included 💕</div>
+  </div>
+  <div class="status-block">
+    <div class="player-name" id="player-name">—</div>
+    <div class="player-meta">
+      <span id="combat-level" class="pill">⚔️ Combat —</span>
+      <span id="total-level" class="pill">🎀 Total —</span>
+      <span id="last-update" class="pill subtle">checking…</span>
+    </div>
+    <div class="username-input">
+      <input type="text" id="username-input" placeholder="username" value="bvels10">
+      <button id="refresh-btn" class="btn-tiny" title="Refresh now">↻</button>
+      <button id="manual-btn" class="btn-tiny" title="Enter stats manually" style="background:linear-gradient(135deg,#d49aa3,#ffd6c2);">✏️</button>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar" id="tabs">
+    <div class="nav-group">
+      <div class="nav-group-title">For You</div>
+      <button class="tab active" data-tab="next"><span class="tab-icon">💖</span> Next Up</button>
+      <button class="tab" data-tab="tasks"><span class="tab-icon">✅</span> My Tasks</button>
+      <button class="tab" data-tab="stats"><span class="tab-icon">📊</span> Stats</button>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">Progression</div>
+      <button class="tab" data-tab="quests"><span class="tab-icon">📜</span> Quests</button>
+      <button class="tab" data-tab="combat"><span class="tab-icon">⚔️</span> Combat</button>
+      <button class="tab" data-tab="skills"><span class="tab-icon">🌸</span> Skills</button>
+      <button class="tab" data-tab="bosses"><span class="tab-icon">👑</span> Bosses</button>
+      <button class="tab" data-tab="diaries"><span class="tab-icon">📔</span> Diaries</button>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">Wealth & Gear</div>
+      <button class="tab" data-tab="money"><span class="tab-icon">💰</span> Money</button>
+      <button class="tab" data-tab="gear"><span class="tab-icon">🛡️</span> Gear</button>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">Reference</div>
+      <button class="tab" data-tab="plugins"><span class="tab-icon">🔌</span> RuneLite</button>
+      <button class="tab" data-tab="rules"><span class="tab-icon">📖</span> Golden Rules</button>
+      <button class="tab" data-tab="keys"><span class="tab-icon">⌨️</span> Keybinds</button>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title">Personal</div>
+      <button class="tab" data-tab="journal"><span class="tab-icon">📓</span> Journal</button>
+      <button class="tab" data-tab="notes"><span class="tab-icon">📝</span> Notes</button>
+    </div>
+  </aside>
+
+  <main id="main"></main>
+</div>
+
+<button id="panic-btn" title="I'm lost — what should I do?">💡 I'm Lost!</button>
+
+<div id="toast-container"></div>
+
+<script src="js/sakura.js"></script>
+<script src="js/data.js"></script>
+<script src="js/hiscores.js"></script>
+<script src="js/recommender.js"></script>
+<script src="js/tasklist.js"></script>
+<script src="js/journal.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

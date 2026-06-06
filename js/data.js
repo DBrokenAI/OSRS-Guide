@@ -1,0 +1,1503 @@
+/* ==========================================================
+   OSRS data — quests, skill tiers, combat path, bosses,
+   money makers, plugins, diaries, rules, keybinds.
+
+   Tiers are written as breakpoints with the *reason* to switch.
+   ========================================================== */
+
+const WIKI = (page) => 'https://oldschool.runescape.wiki/w/' + encodeURIComponent(page.replace(/ /g, '_'));
+
+// ---------- Skill display ----------
+const SKILL_META = [
+  { id: 'attack',       name: 'Attack',       icon: '⚔️',  combat: true  },
+  { id: 'strength',     name: 'Strength',     icon: '💪',  combat: true  },
+  { id: 'defence',      name: 'Defence',      icon: '🛡️',  combat: true  },
+  { id: 'hitpoints',    name: 'Hitpoints',    icon: '❤️',  combat: true  },
+  { id: 'ranged',       name: 'Ranged',       icon: '🏹',  combat: true  },
+  { id: 'prayer',       name: 'Prayer',       icon: '🙏',  combat: true  },
+  { id: 'magic',        name: 'Magic',        icon: '🔮',  combat: true  },
+  { id: 'cooking',      name: 'Cooking',      icon: '🍳' },
+  { id: 'woodcutting',  name: 'Woodcutting',  icon: '🪓' },
+  { id: 'fletching',    name: 'Fletching',    icon: '🎯' },
+  { id: 'fishing',      name: 'Fishing',      icon: '🎣' },
+  { id: 'firemaking',   name: 'Firemaking',   icon: '🔥' },
+  { id: 'crafting',     name: 'Crafting',     icon: '🧵' },
+  { id: 'smithing',     name: 'Smithing',     icon: '🔨' },
+  { id: 'mining',       name: 'Mining',       icon: '⛏️' },
+  { id: 'herblore',     name: 'Herblore',     icon: '🌿' },
+  { id: 'agility',      name: 'Agility',      icon: '🤸' },
+  { id: 'thieving',     name: 'Thieving',     icon: '🥷' },
+  { id: 'slayer',       name: 'Slayer',       icon: '💀' },
+  { id: 'farming',      name: 'Farming',      icon: '🌱' },
+  { id: 'runecraft',    name: 'Runecraft',    icon: '🌀' },
+  { id: 'hunter',       name: 'Hunter',       icon: '🦝' },
+  { id: 'construction', name: 'Construction', icon: '🏠' },
+];
+
+// ---------- XP table (level → cumulative XP) ----------
+const XP_TABLE = (() => {
+  const t = [0];
+  let total = 0;
+  for (let lvl = 1; lvl < 99; lvl++) {
+    total += Math.floor(lvl + 300 * Math.pow(2, lvl / 7)) / 4;
+    t.push(Math.floor(total));
+  }
+  return t;
+})();
+function xpForLevel(lvl) { return XP_TABLE[Math.max(0, Math.min(98, lvl - 1))] || 0; }
+function xpToNext(currentXp, currentLvl) {
+  if (currentLvl >= 99) return 0;
+  return Math.max(0, xpForLevel(currentLvl + 1) - currentXp);
+}
+
+// ---------- Combat level formula ----------
+function combatLevel(s) {
+  const base = 0.25 * (s.defence + s.hitpoints + Math.floor(s.prayer / 2));
+  const melee  = 0.325 * (s.attack + s.strength);
+  const range  = 0.325 * (Math.floor(s.ranged / 2) + s.ranged);
+  const mage   = 0.325 * (Math.floor(s.magic  / 2) + s.magic);
+  return Math.floor(base + Math.max(melee, range, mage));
+}
+
+// ==========================================================
+// QUESTS — beginner-friendly path, ordered by impact
+// reqs: { skill: lvl, quests: [ids] }
+// ==========================================================
+const QUESTS = [
+  // ----- F2P essentials -----
+  { id: 'cooks_assistant', name: "Cook's Assistant", members: false, length: 'Very short',
+    reqs: {}, practicalCombat: 1,
+    rewards: ['300 Cooking XP', '500 coins', 'Access to Lumbridge castle range'],
+    why: 'Free Cooking XP. Talk to the Cook in Lumbridge Castle. Bring milk, egg, flour from the area.', priority: 1 },
+
+  { id: 'prince_ali_rescue', name: 'Prince Ali Rescue', members: false, length: 'Short',
+    reqs: {}, practicalCombat: 1,
+    rewards: ['700 coins', '3 Quest Points', 'Free passage through Al Kharid gate'],
+    why: 'Skip the 10gp Al Kharid toll forever. Easy F2P quest, no combat.', priority: 2 },
+
+  { id: 'misthalin_mystery', name: 'Misthalin Mystery', members: false, length: 'Short',
+    reqs: {}, practicalCombat: 1,
+    rewards: ['600 Crafting XP', 'Mystery box', 'Emerald ring'],
+    why: 'Free Crafting XP + small loot. F2P. No combat. Puzzle-based.', priority: 2 },
+
+  { id: 'gertrudes_cat', name: "Gertrude's Cat", members: true, length: 'Short',
+    reqs: {}, practicalCombat: 1,
+    rewards: ['1,525 Cooking XP', 'A cat (pet that catches rats)'],
+    why: 'Cooking XP + a cute pet cat that catches rats. Members. No combat.', priority: 2 },
+
+  { id: 'knights_sword', name: "The Knight's Sword", members: false, length: 'Medium',
+    reqs: { skill: { mining: 10 } }, practicalCombat: 20,
+    rewards: ['🔥 12,725 Smithing XP (instant 1→29!)'],
+    why: 'F2P. Run past Ice Warriors. Single best Smithing XP reward in the game.', priority: 1 },
+
+  { id: 'black_knights_fortress', name: "Black Knights' Fortress", members: false, length: 'Short',
+    reqs: {}, practicalCombat: 15,
+    rewards: ['3 Quest Points', 'Required for Recruitment Drive (One Small Favour chain)'],
+    why: 'F2P. Stealth-based, no mandatory fights. Tiny quest unlocks future rewards.', priority: 3 },
+
+  { id: 'sleeping_giants', name: 'Sleeping Giants (miniquest)', members: true, length: 'Short',
+    reqs: {}, practicalCombat: 1,
+    rewards: ['Unlocks Giants\' Foundry (best Smithing XP)', '30K Smithing XP if done with bars'],
+    why: 'Unlocks one of the best Smithing methods. No combat.', priority: 2 },
+
+  { id: 'children_of_the_sun', name: 'Children of the Sun', members: true, length: 'Short',
+    reqs: {}, practicalCombat: 1,
+    rewards: ['Civitas illa Fortis access', 'Sun-kissed bones recipe'],
+    why: 'Unlocks new mid-game area. Easy, no combat.', priority: 3 },
+
+  { id: 'sheep_shearer', name: 'Sheep Shearer', members: false, length: 'Short',
+    reqs: {}, rewards: ['150 Crafting XP', '60 coins'],
+    why: 'Easy XP. Pair with Cook\'s Assistant for a 5-min knock-out.', priority: 1 },
+
+  { id: 'romeo_juliet', name: 'Romeo & Juliet', members: false, length: 'Short',
+    reqs: {}, rewards: ['5 Quest Points'],
+    why: 'Required for prerequisites later. Knock it out early.', priority: 2 },
+
+  { id: 'restless_ghost', name: 'The Restless Ghost', members: false, length: 'Short',
+    reqs: {}, rewards: ['1,125 Prayer XP (level 9)', 'Ghostspeak amulet'],
+    why: 'Free prayer to level 9 — unlocks Protect from… prayers chain later.', priority: 1 },
+
+  { id: 'witchs_potion', name: "Witch's Potion", members: false, length: 'Very short',
+    reqs: {}, rewards: ['325 Magic XP'],
+    why: 'Half of level 5 Magic in 2 minutes.', priority: 2 },
+
+  { id: 'imp_catcher', name: 'Imp Catcher', members: false, length: 'Short',
+    reqs: {}, rewards: ['875 Magic XP (level 8)', 'Amulet of Accuracy'],
+    why: 'Pushes Magic toward level 13 for Curse spells.', priority: 2 },
+
+  { id: 'dorics_quest', name: "Doric's Quest", members: false, length: 'Very short',
+    reqs: {}, rewards: ['1,300 Mining XP (level 10)', '180 coins'],
+    why: 'Free Mining start. Path it before mining anything.', priority: 2 },
+
+  { id: 'goblin_diplomacy', name: 'Goblin Diplomacy', members: false, length: 'Short',
+    reqs: {}, rewards: ['200 XP in 3 chosen skills'],
+    why: 'Tiny but easy. Stack the XP into your weakest skills.', priority: 3 },
+
+  { id: 'dragon_slayer_1', name: 'Dragon Slayer I', members: false, length: 'Medium',
+    reqs: { quests: ['restless_ghost'] }, practicalCombat: 45,
+    rewards: ['Ability to wear Rune Platebody / Green dhide body', '18,650 Strength + Defence XP'],
+    why: '🔥 MASSIVE unlock. Rune body is the best body armor for ages. Fight Elvarg (lvl 83) — needs anti-dragon shield + prayer. Wiki recommends combat 45.', priority: 1 },
+
+  { id: 'witchs_house', name: "Witch's House", members: false, length: 'Short',
+    reqs: {}, practicalCombat: 35,
+    rewards: ['6,325 Hitpoints XP (instant lvl 22+)', 'Maze key'],
+    why: 'Huge HP XP for tiny effort. Consecutive fight (lvl 19→30→42→53) — no break for food. Wiki recommends combat 35.', priority: 1 },
+
+  // ----- Members early path -----
+  { id: 'rune_mysteries', name: 'Rune Mysteries', members: false, length: 'Short',
+    reqs: {}, rewards: ['Access to Runecrafting', 'Air talisman'],
+    why: 'Lets you do Runecrafting later. Quick prereq.', priority: 2 },
+
+  { id: 'priest_in_peril', name: 'Priest in Peril', members: true, length: 'Medium',
+    reqs: {}, practicalCombat: 15,
+    rewards: ['1,406 Prayer XP', 'Access to Morytania (huge unlock)'],
+    why: 'Two lvl-30 Temple Guard fights — safespottable. UNLOCKS Morytania: Canifis, Burgh de Rott, Mort Myre, Slayer Tower, Ectofuntus, dozens of other quests.', priority: 1 },
+
+  { id: 'nature_spirit', name: 'Nature Spirit', members: true, length: 'Short',
+    reqs: { quests: ['priest_in_peril'] }, rewards: ['Druid pouch', '3,000 HP + 2,000 Crafting XP'],
+    why: 'Prereq for several Morytania quests including In Aid of the Myreque chain.', priority: 2 },
+
+  { id: 'druidic_ritual', name: 'Druidic Ritual', members: true, length: 'Very short',
+    reqs: {}, rewards: ['250 Herblore XP (level 3) — UNLOCKS HERBLORE'],
+    why: '🔥 Without this you literally cannot train Herblore. Do it the day you become a member.', priority: 1 },
+
+  { id: 'tree_gnome_village', name: 'Tree Gnome Village', members: true, length: 'Medium',
+    reqs: {}, practicalCombat: 45,
+    rewards: ['11,450 Attack XP', 'Spirit tree teleport network 🌳', 'Royal seed pod (later)'],
+    why: 'Huge Attack XP + spirit tree teleports (massive QoL). Fight Khazard Warlord (lvl 112) — safespot with ranged/magic. Wiki recommends combat 45.', priority: 1 },
+
+  { id: 'waterfall_quest', name: 'Waterfall Quest', members: true, length: 'Medium',
+    reqs: {}, practicalCombat: 25,
+    rewards: ['13,750 Attack XP (instant lvl 30)', '13,750 Strength XP (instant lvl 30)', 'Gold ore, gems'],
+    why: 'No fights required — just run past enemies (lvl 84/86). Most efficient combat start in the game. Bring food.', priority: 1 },
+
+  { id: 'fight_arena', name: 'Fight Arena', members: true, length: 'Medium',
+    reqs: {}, practicalCombat: 50,
+    rewards: ['12,175 Attack XP', '2,175 Thieving XP'],
+    why: 'Stack with Waterfall + Tree Gnome Village — pushes Attack to 40 for rune scim. Need to fight Khazard Warlord (~combat 80).', priority: 1 },
+
+  { id: 'death_plateau', name: 'Death Plateau', members: true, length: 'Short',
+    reqs: {}, rewards: ['3,000 Attack XP', 'Free climbing boots (+1 Str)'],
+    why: 'Climbing boots = best-in-slot Strength boots until dragon boots (60 def).', priority: 1 },
+
+  { id: 'vampyre_slayer', name: 'Vampyre Slayer', members: false, length: 'Short',
+    reqs: {}, practicalCombat: 20,
+    rewards: ['4,825 Attack XP'],
+    why: 'F2P! Fight Count Draynor (lvl 34) — safespot with stake. Skippable if you already did Waterfall.', priority: 3 },
+
+  { id: 'grand_tree', name: 'The Grand Tree', members: true, length: 'Medium',
+    reqs: {}, practicalCombat: 60,
+    rewards: ['18,400 Magic + 12,675 Agility + 18,400 Attack XP', 'More spirit tree access'],
+    why: 'Required for Monkey Madness. Fight Black Demon (lvl 100) — safespottable. Wiki recommends combat 60.', priority: 1 },
+
+  { id: 'monkey_madness_1', name: 'Monkey Madness I', members: true, length: 'Long',
+    reqs: { skill: { attack: 60 }, quests: ['grand_tree', 'tree_gnome_village'] }, practicalCombat: 65,
+    rewards: ['🗡️ Dragon Scimitar (best one-handed weapon until 70 Att Whip)', '35,000 Attack + Defence XP', 'Mage of Zamorak teleport'],
+    why: 'DRAGON SCIM = single biggest combat upgrade until Abyssal Whip. Jungle Demon fight (lvl 195, hits 32s, multicombat) — bring 43+ Prayer + Protect from Magic. Wiki recommends combat 65.', priority: 1 },
+
+  { id: 'lost_city', name: 'Lost City', members: true, length: 'Medium',
+    reqs: { skill: { crafting: 31, woodcutting: 36 } }, practicalCombat: 45,
+    rewards: ['Ability to wield Dragon Daggers + Dragon Long', 'Access to Zanaris (fairy ring start)'],
+    why: 'Dragon dagger (special attack) = classic "PK / boss spec" weapon for cheap. Tree Spirit fight (lvl 101) — safespot at low CB. Wiki recommends combat 45.', priority: 2 },
+
+  { id: 'animal_magnetism', name: 'Animal Magnetism', members: true, length: 'Medium',
+    reqs: { skill: { slayer: 18, crafting: 19, ranged: 30, woodcutting: 35 },
+            quests: ['priest_in_peril', 'restless_ghost', 'ernest_chicken'] }, practicalCombat: 25,
+    rewards: ["🏹 Ava's Attractor (40 ranged → upgrade to Accumulator at 50)", 'Saves 75% of ammo'],
+    why: 'Mandatory for ranged training — picks up your arrows for you.', priority: 1 },
+
+  { id: 'mountain_daughter', name: 'Mountain Daughter', members: true, length: 'Medium',
+    reqs: { skill: { agility: 20 } }, practicalCombat: 40,
+    rewards: ['1,000 Strength + Attack XP', 'Prayer XP', 'Asgarnian Ice Dungeon shortcut'],
+    why: 'The Kendal (lvl 70) — safespottable with ranged. Wiki recommends combat 40.', priority: 3 },
+
+  { id: 'horror_from_the_deep', name: 'Horror from the Deep', members: true, length: 'Medium',
+    reqs: { skill: { agility: 35 } }, practicalCombat: 40,
+    rewards: ['God books (+8 prayer when worn)', '4,662 Magic + Defence XP'],
+    why: 'God book = +8 prayer bonus. Dagannoth Mother fight (lvl 100) — change combat style based on her form.', priority: 2 },
+
+  { id: 'heroes_quest', name: "Heroes' Quest", members: true, length: 'Long',
+    reqs: { skill: { mining: 50, cooking: 53, fishing: 53, herblore: 25 }, quests: ['shield_of_arrav'] },
+    practicalCombat: 50,
+    rewards: ['Access to Heroes Guild', 'Dragon battleaxe (str spec)'],
+    why: 'Required for many later achievements + diary tasks. Ice Queen fight (lvl 102) — safespottable.', priority: 3 },
+
+  // ----- RFD chain (Recipe for Disaster) -----
+  { id: 'rfd_start', name: 'Recipe for Disaster: Start', members: true, length: 'Short',
+    reqs: {}, rewards: ['Unlock 8 subquests, each with cooking XP + Culinaromancer\'s gloves tier'],
+    why: 'Each subquest unlocks better gloves (Barrows gloves at the end = best gloves in game for melee).', priority: 2 },
+
+  { id: 'rfd_gnome', name: 'RFD: Tree Gnome Village Cook', members: true, length: 'Short',
+    reqs: { quests: ['rfd_start', 'tree_gnome_village'] }, rewards: ['Bronze gloves (1 attack)'],
+    why: 'Tier 1 of glove chain.', priority: 3 },
+
+  { id: 'rfd_pete', name: 'RFD: Pirate Pete', members: true, length: 'Medium',
+    reqs: { quests: ['rfd_start'], skill: { cooking: 31 } }, rewards: ['Adamant gloves', 'Helm of waterbreathing'],
+    why: 'Big jump in gloves. Doable early.', priority: 3 },
+
+  { id: 'rfd_lumby', name: 'RFD: Lumbridge Guide', members: true, length: 'Short',
+    reqs: { quests: ['rfd_start', 'biohazard'] }, rewards: ['Rune gloves'],
+    why: 'Rune gloves are great until Barrows.', priority: 3 },
+
+  // ----- Money-flow quests -----
+  { id: 'fairytale_1', name: "Fairytale I — Growing Pains", members: true, length: 'Medium',
+    reqs: { quests: ['lost_city', 'nature_spirit'] },
+    rewards: ['2,000 Attack + Farming + Herblore XP', 'Magic secateurs (+10% herb yield)'],
+    why: 'Magic secateurs = 10% more herbs forever. Big long-term GP.', priority: 2 },
+
+  { id: 'fairytale_2', name: 'Fairytale II — Cure a Queen', members: true, length: 'Long',
+    reqs: { skill: { thieving: 40, farming: 49, herblore: 57 }, quests: ['fairytale_1'] },
+    rewards: ['Fairy ring teleport network'],
+    why: 'Fairy rings = teleports to 50+ locations. ESSENTIAL transport unlock.', priority: 1 },
+
+  { id: 'ghosts_ahoy', name: 'Ghosts Ahoy', members: true, length: 'Medium',
+    reqs: { skill: { agility: 25, cooking: 20 }, quests: ['priest_in_peril'] },
+    rewards: ['Ectophial (teleport to Ectofuntus, 9 charges)'],
+    why: 'Best early-game prayer training method (Ectofuntus = 4x XP per bone).', priority: 2 },
+
+
+  { id: 'cabin_fever', name: 'Cabin Fever', members: true, length: 'Long',
+    reqs: { skill: { agility: 42, crafting: 45, smithing: 50, ranged: 40 },
+            quests: ['rum_deal', 'pirates_treasure'] },
+    rewards: ['7,000 Agility XP', '7,000 Smithing XP', 'Book O\' Piracy'],
+    why: 'Big agility XP. Wait until you have the stats.', priority: 3 },
+
+  { id: 'one_small_favour', name: 'One Small Favour', members: true, length: 'Long',
+    reqs: { skill: { agility: 36, crafting: 25, herblore: 18, smithing: 30 } },
+    rewards: ['10,000 XP lamps × 2 (any skill, 30+)'],
+    why: 'Two free 10K XP lamps for any skill ≥ 30. Save for slow skills like Slayer or Agility.', priority: 2 },
+
+  { id: 'biohazard', name: 'Biohazard', members: true, length: 'Medium',
+    reqs: { quests: ['plague_city'] }, rewards: ['Required for RFD Lumby + many other quests'],
+    why: 'Gating quest — get it out of the way.', priority: 3 },
+
+  { id: 'plague_city', name: 'Plague City', members: true, length: 'Medium',
+    reqs: {}, rewards: ['West Ardougne access', '2,425 Mining XP'],
+    why: 'Unlocks Ardougne areas + diary tasks.', priority: 3 },
+
+  { id: 'shield_of_arrav', name: 'Shield of Arrav', members: false, length: 'Medium',
+    reqs: {}, rewards: ['600 coins', 'Required for Heroes\' Quest'],
+    why: 'Needs a friend or a world swap to find a partner. Easy otherwise.', priority: 3 },
+
+  { id: 'ernest_chicken', name: 'Ernest the Chicken', members: false, length: 'Short',
+    reqs: {}, rewards: ['300 coins', 'Required for Animal Magnetism'],
+    why: 'Knock out before Animal Magnetism.', priority: 2 },
+
+  { id: 'rum_deal', name: 'Rum Deal', members: true, length: 'Medium',
+    reqs: { skill: { crafting: 42, fishing: 50, farming: 40, prayer: 47 },
+            quests: ['priest_in_peril', 'zogre_flesh_eaters'] },
+    rewards: ['7,000 Prayer XP', '7,000 Farming XP', '7,000 Fishing XP'],
+    why: 'Huge prayer XP. Save for when you have the reqs.', priority: 3 },
+
+  { id: 'tai_bwo', name: 'Tai Bwo Wannai Trio', members: true, length: 'Long',
+    reqs: { skill: { agility: 15, cooking: 30, fishing: 5 } },
+    rewards: ['5,000 Cooking + Fishing + Attack XP', 'Karambwan access'],
+    why: 'Karambwans = best food/inv ratio. Pre-req for late-game PvM food.', priority: 2 },
+];
+
+// ==========================================================
+// ALL_QUESTS_FLAT — complete OSRS quest list for bulk-marking
+// (id is auto-derived; members flag for filtering)
+// ==========================================================
+const ALL_QUESTS_FLAT = [
+  // F2P quests
+  { name: "Below Ice Mountain", members: false, tier: 'novice' },
+  { name: "Black Knights' Fortress", members: false, tier: 'novice' },
+  { name: "Cook's Assistant", members: false, tier: 'novice' },
+  { name: "Demon Slayer", members: false, tier: 'novice' },
+  { name: "Doric's Quest", members: false, tier: 'novice' },
+  { name: "Dragon Slayer I", members: false, tier: 'experienced' },
+  { name: "Ernest the Chicken", members: false, tier: 'novice' },
+  { name: "Goblin Diplomacy", members: false, tier: 'novice' },
+  { name: "Imp Catcher", members: false, tier: 'novice' },
+  { name: "Misthalin Mystery", members: false, tier: 'novice' },
+  { name: "Pirate's Treasure", members: false, tier: 'novice' },
+  { name: "Prince Ali Rescue", members: false, tier: 'novice' },
+  { name: "Romeo & Juliet", members: false, tier: 'novice' },
+  { name: "Rune Mysteries", members: false, tier: 'novice' },
+  { name: "Sheep Shearer", members: false, tier: 'novice' },
+  { name: "Shield of Arrav", members: false, tier: 'novice' },
+  { name: "The Knight's Sword", members: false, tier: 'novice' },
+  { name: "The Restless Ghost", members: false, tier: 'novice' },
+  { name: "Vampyre Slayer", members: false, tier: 'novice' },
+  { name: "Witch's Potion", members: false, tier: 'novice' },
+  { name: "X Marks the Spot", members: false, tier: 'novice' },
+
+  // Members novice
+  { name: "Animal Magnetism", members: true, tier: 'intermediate' },
+  { name: "A Soul's Bane", members: true, tier: 'intermediate' },
+  { name: "Bear Your Soul", members: true, tier: 'novice' },
+  { name: "Big Chompy Bird Hunting", members: true, tier: 'novice' },
+  { name: "Biohazard", members: true, tier: 'intermediate' },
+  { name: "Cabin Fever", members: true, tier: 'experienced' },
+  { name: "Client of Kourend", members: true, tier: 'novice' },
+  { name: "Contact!", members: true, tier: 'intermediate' },
+  { name: "Creature of Fenkenstrain", members: true, tier: 'intermediate' },
+  { name: "Daddy's Home", members: true, tier: 'novice' },
+  { name: "Darkness of Hallowvale", members: true, tier: 'experienced' },
+  { name: "Death Plateau", members: true, tier: 'novice' },
+  { name: "Death to the Dorgeshuun", members: true, tier: 'novice' },
+  { name: "Desert Treasure I", members: true, tier: 'experienced' },
+  { name: "Desert Treasure II - The Fallen Empire", members: true, tier: 'master' },
+  { name: "Devious Minds", members: true, tier: 'intermediate' },
+  { name: "Dragon Slayer II", members: true, tier: 'grandmaster' },
+  { name: "Druidic Ritual", members: true, tier: 'novice' },
+  { name: "Dwarf Cannon", members: true, tier: 'novice' },
+  { name: "Eadgar's Ruse", members: true, tier: 'experienced' },
+  { name: "Eagles' Peak", members: true, tier: 'intermediate' },
+  { name: "Elemental Workshop I", members: true, tier: 'novice' },
+  { name: "Elemental Workshop II", members: true, tier: 'intermediate' },
+  { name: "Enakhra's Lament", members: true, tier: 'intermediate' },
+  { name: "Enlightened Journey", members: true, tier: 'experienced' },
+  { name: "Fairytale I - Growing Pains", members: true, tier: 'intermediate' },
+  { name: "Fairytale II - Cure a Queen", members: true, tier: 'experienced' },
+  { name: "Family Crest", members: true, tier: 'experienced' },
+  { name: "Fight Arena", members: true, tier: 'intermediate' },
+  { name: "Fishing Contest", members: true, tier: 'novice' },
+  { name: "Forgettable Tale...", members: true, tier: 'intermediate' },
+  { name: "Garden of Tranquility", members: true, tier: 'intermediate' },
+  { name: "Gertrude's Cat", members: true, tier: 'novice' },
+  { name: "Ghosts Ahoy", members: true, tier: 'intermediate' },
+  { name: "Grim Tales", members: true, tier: 'experienced' },
+  { name: "Hazeel Cult", members: true, tier: 'novice' },
+  { name: "Haunted Mine", members: true, tier: 'experienced' },
+  { name: "Heroes' Quest", members: true, tier: 'experienced' },
+  { name: "Holy Grail", members: true, tier: 'intermediate' },
+  { name: "Horror from the Deep", members: true, tier: 'intermediate' },
+  { name: "Icthlarin's Little Helper", members: true, tier: 'intermediate' },
+  { name: "In Aid of the Myreque", members: true, tier: 'experienced' },
+  { name: "In Search of the Myreque", members: true, tier: 'intermediate' },
+  { name: "Jungle Potion", members: true, tier: 'novice' },
+  { name: "King's Ransom", members: true, tier: 'experienced' },
+  { name: "Land of the Goblins", members: true, tier: 'experienced' },
+  { name: "Legends' Quest", members: true, tier: 'master' },
+  { name: "Lost City", members: true, tier: 'intermediate' },
+  { name: "Lunar Diplomacy", members: true, tier: 'experienced' },
+  { name: "Making History", members: true, tier: 'novice' },
+  { name: "Merlin's Crystal", members: true, tier: 'intermediate' },
+  { name: "Misthalin Mystery", members: true, tier: 'novice' },
+  { name: "Monkey Madness I", members: true, tier: 'experienced' },
+  { name: "Monkey Madness II", members: true, tier: 'master' },
+  { name: "Mountain Daughter", members: true, tier: 'intermediate' },
+  { name: "Mourning's End Part I", members: true, tier: 'master' },
+  { name: "Mourning's End Part II", members: true, tier: 'master' },
+  { name: "Murder Mystery", members: true, tier: 'novice' },
+  { name: "My Arm's Big Adventure", members: true, tier: 'experienced' },
+  { name: "Nature Spirit", members: true, tier: 'intermediate' },
+  { name: "Observatory Quest", members: true, tier: 'novice' },
+  { name: "Olaf's Quest", members: true, tier: 'intermediate' },
+  { name: "One Small Favour", members: true, tier: 'experienced' },
+  { name: "Path of Glouphrie", members: true, tier: 'intermediate' },
+  { name: "Pirate Pete (RFD)", members: true, tier: 'intermediate' },
+  { name: "Plague City", members: true, tier: 'novice' },
+  { name: "Priest in Peril", members: true, tier: 'intermediate' },
+  { name: "Rag and Bone Man I", members: true, tier: 'novice' },
+  { name: "Rag and Bone Man II", members: true, tier: 'experienced' },
+  { name: "Ratcatchers", members: true, tier: 'intermediate' },
+  { name: "Recipe for Disaster (Start)", members: true, tier: 'intermediate' },
+  { name: "RFD: Awowogei", members: true, tier: 'experienced' },
+  { name: "RFD: Goblins (Generals)", members: true, tier: 'intermediate' },
+  { name: "RFD: Lumbridge Guide", members: true, tier: 'intermediate' },
+  { name: "RFD: Mountain Dwarf", members: true, tier: 'intermediate' },
+  { name: "RFD: Pirate Pete", members: true, tier: 'intermediate' },
+  { name: "RFD: Sir Amik Varze", members: true, tier: 'experienced' },
+  { name: "RFD: Skrach Uglogwee", members: true, tier: 'intermediate' },
+  { name: "RFD: The Final Battle", members: true, tier: 'master' },
+  { name: "RFD: Tree Gnome Village Cook", members: true, tier: 'intermediate' },
+  { name: "Regicide", members: true, tier: 'experienced' },
+  { name: "Roving Elves", members: true, tier: 'experienced' },
+  { name: "Royal Trouble", members: true, tier: 'experienced' },
+  { name: "Rum Deal", members: true, tier: 'experienced' },
+  { name: "Scorpion Catcher", members: true, tier: 'intermediate' },
+  { name: "Sea Slug", members: true, tier: 'novice' },
+  { name: "Shades of Mort'ton", members: true, tier: 'intermediate' },
+  { name: "Shadow of the Storm", members: true, tier: 'intermediate' },
+  { name: "Sheep Herder", members: true, tier: 'novice' },
+  { name: "Shilo Village", members: true, tier: 'experienced' },
+  { name: "Sins of the Father", members: true, tier: 'master' },
+  { name: "Sleeping Giants (miniquest)", members: true, tier: 'novice' },
+  { name: "Slug Menace", members: true, tier: 'intermediate' },
+  { name: "Song of the Elves", members: true, tier: 'grandmaster' },
+  { name: "Spirits of the Elid", members: true, tier: 'intermediate' },
+  { name: "Swan Song", members: true, tier: 'master' },
+  { name: "Tai Bwo Wannai Trio", members: true, tier: 'experienced' },
+  { name: "Tale of the Righteous", members: true, tier: 'novice' },
+  { name: "Temple of Ikov", members: true, tier: 'experienced' },
+  { name: "The Ascent of Arceuus", members: true, tier: 'novice' },
+  { name: "The Corsair Curse", members: true, tier: 'novice' },
+  { name: "The Depths of Despair", members: true, tier: 'novice' },
+  { name: "The Dig Site", members: true, tier: 'experienced' },
+  { name: "The Eyes of Glouphrie", members: true, tier: 'intermediate' },
+  { name: "The Feud", members: true, tier: 'intermediate' },
+  { name: "The Forsaken Tower", members: true, tier: 'novice' },
+  { name: "The Fremennik Exiles", members: true, tier: 'master' },
+  { name: "The Fremennik Isles", members: true, tier: 'experienced' },
+  { name: "The Fremennik Trials", members: true, tier: 'experienced' },
+  { name: "The Garden of Death", members: true, tier: 'intermediate' },
+  { name: "The General's Shadow (miniquest)", members: true, tier: 'novice' },
+  { name: "The Giant Dwarf", members: true, tier: 'intermediate' },
+  { name: "The Golem", members: true, tier: 'intermediate' },
+  { name: "The Grand Tree", members: true, tier: 'experienced' },
+  { name: "The Hand in the Sand", members: true, tier: 'intermediate' },
+  { name: "The Lost Tribe", members: true, tier: 'intermediate' },
+  { name: "The Path of Glouphrie", members: true, tier: 'intermediate' },
+  { name: "The Queen of Thieves", members: true, tier: 'novice' },
+  { name: "The Slug Menace", members: true, tier: 'intermediate' },
+  { name: "The Tourist Trap", members: true, tier: 'experienced' },
+  { name: "Throne of Miscellania", members: true, tier: 'experienced' },
+  { name: "Tower of Life", members: true, tier: 'novice' },
+  { name: "Tree Gnome Village", members: true, tier: 'novice' },
+  { name: "Tribal Totem", members: true, tier: 'novice' },
+  { name: "Troll Romance", members: true, tier: 'experienced' },
+  { name: "Troll Stronghold", members: true, tier: 'experienced' },
+  { name: "Underground Pass", members: true, tier: 'experienced' },
+  { name: "Vampyre Slayer", members: false, tier: 'novice' },
+  { name: "Watchtower", members: true, tier: 'experienced' },
+  { name: "Waterfall Quest", members: true, tier: 'intermediate' },
+  { name: "What Lies Below", members: true, tier: 'intermediate' },
+  { name: "Witch's House", members: false, tier: 'intermediate' },
+  { name: "Wolf Whistle", members: true, tier: 'novice' },
+  { name: "Zogre Flesh Eaters", members: true, tier: 'intermediate' },
+
+  // Newer / Kourend / Misc
+  { name: "A Kingdom Divided", members: true, tier: 'master' },
+  { name: "A Night at the Theatre", members: true, tier: 'master' },
+  { name: "A Tail of Two Cats", members: true, tier: 'intermediate' },
+  { name: "A Taste of Hope", members: true, tier: 'experienced' },
+  { name: "Alfred Grimhand's Barcrawl", members: true, tier: 'novice' },
+  { name: "Architectural Alliance (miniquest)", members: true, tier: 'novice' },
+  { name: "Beneath Cursed Sands", members: true, tier: 'master' },
+  { name: "Bone Voyage", members: true, tier: 'intermediate' },
+  { name: "Children of the Sun", members: true, tier: 'novice' },
+  { name: "Curse of the Empty Lord (miniquest)", members: true, tier: 'novice' },
+  { name: "Death on the Isle", members: true, tier: 'intermediate' },
+  { name: "Defender of Varrock", members: true, tier: 'experienced' },
+  { name: "Dragon Slayer II", members: true, tier: 'grandmaster' },
+  { name: "Ethically Acquired Antiquities", members: true, tier: 'novice' },
+  { name: "His Faithful Servants", members: true, tier: 'novice' },
+  { name: "Land of the Goblins", members: true, tier: 'experienced' },
+  { name: "Mahjarrat Memories (miniquest)", members: true, tier: 'novice' },
+  { name: "Meat and Greet", members: true, tier: 'novice' },
+  { name: "Perilous Moons", members: true, tier: 'master' },
+  { name: "Recipe for Disaster: Final Battle", members: true, tier: 'master' },
+  { name: "Secrets of the North", members: true, tier: 'master' },
+  { name: "Sleeping Giants", members: true, tier: 'novice' },
+  { name: "Tears of Guthix", members: true, tier: 'novice' },
+  { name: "The Curse of Arrav", members: true, tier: 'master' },
+  { name: "The Heart of Darkness", members: true, tier: 'master' },
+  { name: "The Mage Arena I (miniquest)", members: true, tier: 'novice' },
+  { name: "The Path of Glouphrie", members: true, tier: 'intermediate' },
+  { name: "The Ribbiting Tale of a Lily Pad Labour Dispute", members: true, tier: 'novice' },
+  { name: "Twilight's Promise", members: true, tier: 'experienced' },
+  { name: "Until Then", members: true, tier: 'novice' },
+  { name: "While Guthix Sleeps", members: true, tier: 'grandmaster' },
+];
+
+// Slugify quest name → id
+function questNameToId(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+}
+
+// ==========================================================
+// MASTER_TASKS — beginner→midgame activities beyond quests
+// Categories: starter, setup, minigame, gear, skilling, milestone, daily, boss
+// reqs: { skill: {id: lvl}, quest: id, combat: n, task: id }
+// ==========================================================
+const MASTER_TASKS = [
+
+  // ----- STARTER (no reqs, do this first day) -----
+  { id: 'stronghold_security', category: 'starter', icon: '🛡️', priority: 1,
+    name: 'Stronghold of Security — free 10,000 gp + boots',
+    reqs: {},
+    why: 'Free 10K gp + Fancy Boots or Fighter Boots (str bonus). Roughly 30 minutes, no combat needed. Read the dialogue — it teaches account security.',
+    how: 'Enter via the trapdoor in Barbarian Village (north of the bridge). Click through 4 floors and the answer questions.',
+    wiki: 'Stronghold of Security' },
+
+  { id: 'glory_amulet', category: 'setup', icon: '💎', priority: 1,
+    name: 'Buy an Amulet of Glory (4) — ~10K gp',
+    reqs: {},
+    why: 'Four free teleports per charge: Edgeville, Karamja, Draynor Village, Al Kharid. Game-changing transport.',
+    how: 'Buy from the Grand Exchange. Recharge at the Heroes Guild fountain.',
+    wiki: 'Amulet of glory' },
+
+  { id: 'fairy_ring_unlock', category: 'setup', icon: '🍀', priority: 2,
+    name: 'Unlock fairy rings (Fairytale II: Cure a Queen)',
+    reqs: { skill: { thieving: 40, farming: 49, herblore: 57 } },
+    why: '50+ teleport locations across the world via fairy rings. Massive QoL.',
+    how: 'Complete Fairytale I & II. Use the Wiki Quest Helper plugin.',
+    wiki: 'Fairy ring' },
+
+  { id: 'rune_pouch', category: 'setup', icon: '👜', priority: 2,
+    name: 'Earn the Rune Pouch (Wintertodt or Slayer)',
+    reqs: { skill: { firemaking: 50 } },
+    why: 'Carry 3 rune types in 1 slot. Mandatory for teleports/spells in your inventory.',
+    how: 'Wintertodt loot rolls drop it. Faster than slayer. Or buy from GE if available (~100K).',
+    wiki: 'Rune pouch' },
+
+  // ----- GRACEFUL + Skilling Outfits -----
+  { id: 'graceful', category: 'gear', icon: '🌸', priority: 1,
+    name: 'Full Graceful outfit (260 Marks of Grace)',
+    reqs: {},
+    why: '-25% weight, +30% run energy regen. The single most useful outfit in the game — used for EVERYTHING.',
+    how: 'Run rooftop agility courses (Draynor at 30, Varrock at 50, Canifis at 60). Buy pieces from Grace at the Rogues\' Den (Burthorpe basement). Hood 35, Top 55, Legs 60, Gloves 30, Boots 40, Cape 40 marks.',
+    wiki: 'Graceful outfit' },
+
+  { id: 'prospector', category: 'gear', icon: '⛏️', priority: 2,
+    name: 'Prospector outfit (+2.5% Mining XP)',
+    reqs: { skill: { mining: 30 } },
+    why: 'Permanent +2.5% Mining XP boost (whole set).',
+    how: 'Motherlode Mine — exchange nuggets at Prospector Percy. Helmet 60, Top 130, Legs 120, Boots 60 nuggets.',
+    wiki: 'Prospector kit' },
+
+  { id: 'lumberjack', category: 'gear', icon: '🪓', priority: 2,
+    name: 'Lumberjack outfit (+2.5% Woodcutting XP)',
+    reqs: { skill: { woodcutting: 44 } },
+    why: 'Permanent +2.5% WC XP boost (whole set).',
+    how: 'Random drop from the Forestry events (cluster around shooting stars and yew/magic trees). Or buy from GE.',
+    wiki: 'Lumberjack outfit' },
+
+  { id: 'angler', category: 'gear', icon: '🎣', priority: 2,
+    name: 'Angler outfit (+2.5% Fishing XP)',
+    reqs: { skill: { fishing: 35 } },
+    why: 'Permanent +2.5% Fishing XP boost (whole set).',
+    how: 'Buy from Tempoross rewards (35 fishing required).',
+    wiki: 'Angler outfit' },
+
+  { id: 'pyromancer', category: 'gear', icon: '🔥', priority: 2,
+    name: 'Pyromancer outfit (+2.5% Firemaking XP)',
+    reqs: { skill: { firemaking: 50 } },
+    why: 'Permanent +2.5% FM XP boost (whole set). And it looks cute.',
+    how: 'Random drop from Wintertodt loot crates.',
+    wiki: 'Pyromancer outfit' },
+
+  { id: 'rogue_outfit', category: 'gear', icon: '🥷', priority: 3,
+    name: 'Rogue outfit (double loot on pickpocket)',
+    reqs: { skill: { thieving: 50, agility: 50 } },
+    why: 'Each piece = ~12.5% chance to double pickpocket loot. Full set = sometimes you steal twice the gp.',
+    how: 'Rogues\' Den agility/thieving minigame (Burthorpe).',
+    wiki: 'Rogue equipment' },
+
+  { id: 'farmer_outfit', category: 'gear', icon: '🌱', priority: 3,
+    name: 'Farmer\'s outfit (+0.5% Farming XP per piece)',
+    reqs: { skill: { farming: 34 } },
+    why: '+2.5% Farming XP for the full set.',
+    how: 'Tithe Farm minigame in Zeah (Hosidius). 100% favour preferred.',
+    wiki: "Farmer's outfit" },
+
+  // ----- MINIGAMES (huge value at the right level) -----
+  { id: 'wintertodt', category: 'minigame', icon: '🔥', priority: 1,
+    name: 'Wintertodt — Firemaking + free supplies + pet rolls',
+    reqs: { skill: { firemaking: 50 } },
+    why: 'BEST Firemaking training. Drops food, herbs, seeds, gp, dragon axe pieces, Phoenix pet. Group, safe (no PvP).',
+    how: 'World hop to a popular Wintertodt world (309 is the meta). Travel to Wintertodt camp (north Great Kourend). Bring tinderbox + knife + warm clothes (Pyromancer outfit ideal).',
+    wiki: 'Wintertodt' },
+
+  { id: 'tempoross', category: 'minigame', icon: '🎣', priority: 1,
+    name: 'Tempoross — Fishing + free fish + pet',
+    reqs: { skill: { fishing: 35 } },
+    why: 'Wintertodt-style minigame for Fishing. Rewards Angler outfit + raw fish + Spirit Flakes (+35% chance for double fish).',
+    how: 'Ruins of Unkah, south of Al Kharid. Free-to-play accessible base.',
+    wiki: 'Tempoross' },
+
+  { id: 'mahogany_homes', category: 'minigame', icon: '🏠', priority: 2,
+    name: 'Mahogany Homes — Construction XP without paying',
+    reqs: { skill: { construction: 1 } },
+    why: 'Plank XP without consuming planks (Wilfred provides). Beats traditional training cost-wise at low levels.',
+    how: 'Varrock east — Wilfred at the building. Pick contracts at your level.',
+    wiki: 'Mahogany Homes' },
+
+  { id: 'barbarian_assault', category: 'minigame', icon: '⚔️', priority: 2,
+    name: 'Barbarian Assault — Fighter Torso + Penance gloves',
+    reqs: { combat: 50 },
+    why: 'Fighter Torso = BIS body for melee training (+4 str). Better than rune body. Penance Gloves = great gloves.',
+    how: 'Barbarian Outpost (north of Ardougne). Group of 5. Need 100 wave 10 attacker games for torso.',
+    wiki: 'Barbarian Assault' },
+
+  { id: 'pest_control', category: 'minigame', icon: '🦠', priority: 2,
+    name: 'Pest Control — Void Knight gear + combat XP',
+    reqs: { combat: 40 },
+    why: 'Void Knight set = best ranged set until BIS, also great melee/mage variants. 850 points = full helm + body + legs.',
+    how: 'Void Knight Outpost (south of Port Sarim). Queue for Veteran boat (combat 100+ unlocks).',
+    wiki: 'Pest Control' },
+
+  { id: 'castle_wars', category: 'minigame', icon: '🚩', priority: 3,
+    name: 'Castle Wars — Decorative armor (cosmetic, fun)',
+    reqs: {},
+    why: 'PvP-lite, no risk. Decorative armor sets that look cool.',
+    how: 'Castle Wars portal (south of Yanille). Just play.',
+    wiki: 'Castle Wars' },
+
+  { id: 'soul_wars', category: 'minigame', icon: '👻', priority: 3,
+    name: 'Soul Wars — Imbued rings (NOT free in OSRS!)',
+    reqs: { combat: 40 },
+    why: 'Imbue your Berserker / Archer / Seers / Warrior rings for +stats. Requires lots of zeal.',
+    how: 'Soul Wars portal (Edgeville/Ferox Enclave). 70+ recommended.',
+    wiki: 'Soul Wars' },
+
+  { id: 'volcanic_mine', category: 'minigame', icon: '⛏️', priority: 3,
+    name: 'Volcanic Mine — fast Mining at 50+',
+    reqs: { skill: { mining: 50 } },
+    why: 'Better XP than MLM at higher levels + ash/lava rewards.',
+    how: 'Fossil Island — needs Bone Voyage quest. Solo or duo.',
+    wiki: 'Volcanic Mine' },
+
+  // ----- BIG GEAR UNLOCKS -----
+  { id: 'helm_neitiznot', category: 'gear', icon: '👑', priority: 2,
+    name: 'Helm of Neitiznot (+3 strength bonus)',
+    reqs: { skill: { defence: 10 } },
+    why: 'Best-in-slot melee helm before Serpentine helm/Slayer helm. +3 str bonus you wear forever.',
+    how: 'Complete The Fremennik Isles quest. Repair token from Fremennik Province.',
+    wiki: 'Helm of Neitiznot' },
+
+  { id: 'fire_cape', category: 'gear', icon: '🔥', priority: 3,
+    name: 'Fire Cape — TzHaar Fight Cave',
+    reqs: { skill: { ranged: 75, defence: 45, prayer: 43 } },
+    why: '+4 strength bonus best-in-slot cape until Infernal. Trophy for every account.',
+    how: 'TzHaar Fight Cave (Mor Ul Rek, Karamja). Solo 63 waves. Blowpipe + diamond bolts (e). Watch a guide first!',
+    wiki: 'Fire cape' },
+
+  { id: 'avas_assembler', category: 'gear', icon: '🏹', priority: 2,
+    name: "Ava's Assembler — best ranged cape",
+    reqs: { skill: { ranged: 70 } },
+    why: '+8 ranged str, picks up arrows. Beats Accumulator. Pre-req for Max Cape.',
+    how: 'Kill Vorkath 200 times to get Vorkath\'s head, combine with Accumulator + Mage Arena cape. OR Dragon Slayer II reward gives it directly.',
+    wiki: "Ava's assembler" },
+
+  { id: 'slayer_helm', category: 'gear', icon: '💀', priority: 2,
+    name: 'Slayer Helmet (+15% combat vs tasks)',
+    reqs: { skill: { slayer: 55, defence: 10, crafting: 55 } },
+    why: '+15% accuracy/damage on slayer tasks. Stack with Imbued (+15% mage/range too).',
+    how: 'Unlock at 55 slayer (400 points unlock from any master). Build from Black Mask + earmuffs + facemask + nose peg + spiny helmet.',
+    wiki: 'Slayer helmet' },
+
+  { id: 'imbued_slayer_helm', category: 'gear', icon: '✨', priority: 3,
+    name: 'Imbued Slayer Helmet (range/mage bonus too)',
+    reqs: { skill: { slayer: 55 } },
+    why: 'Imbued version applies +15% to ranged AND magic damage on tasks. Multi-style BIS for slayer.',
+    how: 'Buy Slayer Imbue unlock (1250 points), then imbue helm.',
+    wiki: 'Slayer helmet (i)' },
+
+  { id: 'barrows_gloves', category: 'gear', icon: '🧤', priority: 2,
+    name: 'Barrows Gloves (BIS gloves until ages)',
+    reqs: { quest: 'RFD: The Final Battle' },
+    why: 'Best gloves for melee/range/mage until very endgame. Worth chasing the RFD chain.',
+    how: 'Complete all 8 RFD subquests + final battle. Long but very worth it.',
+    wiki: 'Barrows gloves' },
+
+  { id: 'gilded_altar', category: 'skilling', icon: '🙏', priority: 2,
+    name: 'Find a Gilded Altar (3.5x Prayer XP)',
+    reqs: {},
+    why: '2x XP with no burners, 3.5x with marrentill burners. Use someone\'s POH altar.',
+    how: 'Type "alt" in friend chats (e.g. "PHP Altar" or "Yanille altar") to find rentals.',
+    wiki: 'Gilded altar' },
+
+  // ----- DIARIES (big rewards) -----
+  { id: 'diary_karamja_easy', category: 'milestone', icon: '🌴', priority: 2,
+    name: 'Karamja Easy Diary → Karamja gloves 1',
+    reqs: {},
+    why: 'Free Karamja teleport + Hosidius access boost. Easiest big-reward diary.',
+    how: 'Open the 📔 Diaries tab in this guide for the checklist.',
+    wiki: 'Karamja Diary' },
+
+  { id: 'diary_lumby_easy', category: 'milestone', icon: '🗺️', priority: 2,
+    name: 'Lumbridge Easy Diary → Explorer\'s ring 1',
+    reqs: {},
+    why: '30% run energy daily replenish forever. Best early-game ring.',
+    how: 'Open the 📔 Diaries tab.',
+    wiki: 'Lumbridge & Draynor Diary' },
+
+  { id: 'diary_varrock_easy', category: 'milestone', icon: '🛡️', priority: 2,
+    name: 'Varrock Easy Diary → Varrock armor 1',
+    reqs: {},
+    why: '100% chance to mine 2 ores per swing up to iron (faster early mining).',
+    how: 'Open the 📔 Diaries tab.',
+    wiki: 'Varrock Diary' },
+
+  // ----- BIG BOSSES (also in Bosses tab) -----
+  { id: 'scurrius', category: 'boss', icon: '🐀', priority: 2,
+    name: 'Scurrius — beginner boss (Combat 60+)',
+    reqs: { combat: 60 },
+    why: 'Built for newbies. Drops the Scurrius spine for big stab bonus. Solo or grouped.',
+    how: 'Enter the Varrock Sewers, fight it 1×/day for free or unlimited in instanced mode.',
+    wiki: 'Scurrius' },
+
+  { id: 'barrows', category: 'boss', icon: '⚰️', priority: 3,
+    name: 'Barrows — 1× daily for armor sets',
+    reqs: { combat: 80, skill: { prayer: 43 } },
+    why: 'BIS armor sets in their style (e.g. Karil\'s = top range, Ahrim\'s = top mage). Long-term goal.',
+    how: 'Burgh de Rott (after Priest in Peril). Watch a guide — rotating brothers + drain prayer.',
+    wiki: 'Barrows' },
+
+  { id: 'kbd', category: 'boss', icon: '🐉', priority: 3,
+    name: 'King Black Dragon — first easy dragon boss',
+    reqs: { combat: 80 },
+    why: 'Easy dragon boss. Wilderness — wear nothing valuable. Visage drops are jackpot.',
+    how: 'Bring antifire potion + shield, ranged or mage gear. Wilderness lever in Edgeville.',
+    wiki: 'King Black Dragon' },
+
+  { id: 'vorkath', category: 'boss', icon: '🐲', priority: 4,
+    name: 'Vorkath — best mid-game money',
+    reqs: { skill: { ranged: 75, defence: 70, prayer: 74 }, quest: 'Dragon Slayer II' },
+    why: '2-3M gp/hr once learned. Funds basically every future goal.',
+    how: 'Need Dragon Slayer II, Rigour, Blowpipe. Watch a video guide before first attempts.',
+    wiki: 'Vorkath' },
+
+  // ----- DAILIES (passive income/XP) -----
+  { id: 'daily_farm_run', category: 'daily', icon: '🌿', priority: 1,
+    name: 'Daily Herb Run — every 80 min, 1M+ gp/day',
+    reqs: { skill: { farming: 32 } },
+    why: '5 patches × 5 min = 100-300K gp + 50K+ Farming XP per run. 4-5 runs/day = millions.',
+    how: 'Compost → ranarr seed in each patch (Catherby, Falador, Ardy, Hosidius, Trollheim, Farming Guild). Use Spirit tree + fairy ring + glory.',
+    wiki: 'Herb farming' },
+
+  { id: 'daily_tree_run', category: 'daily', icon: '🌳', priority: 1,
+    name: 'Daily Tree Run — passive Woodcutting XP',
+    reqs: { skill: { farming: 15 } },
+    why: 'Plant saplings, come back when grown. Yew at 60 = 11K Farming XP per tree.',
+    how: 'Plant trees in Lumbridge, Varrock, Falador, Taverley, Gnome Stronghold patches.',
+    wiki: 'Tree farming' },
+
+  { id: 'daily_zaff', category: 'daily', icon: '🪄', priority: 2,
+    name: 'Daily Battlestaves from Zaff (200K/day profit)',
+    reqs: { quest: 'Varrock Easy Diary' },
+    why: 'Buy 64 battlestaves/day at 7K, alch for 9K each = ~150K free gp daily.',
+    how: 'Talk to Zaff in Varrock with note from Wizard Cromperty.',
+    wiki: 'Zaff' },
+
+  { id: 'daily_kingdom', category: 'daily', icon: '👑', priority: 3,
+    name: 'Manage Miscellania (Throne of Miscellania)',
+    reqs: { quest: 'Throne of Miscellania' },
+    why: 'Free passive resources every day (max ~10M coins → ~50K resources daily).',
+    how: 'Deposit coins in Advisor Ghrim, set workers to maple logs (early) or teaks (mid).',
+    wiki: 'Managing Miscellania' },
+
+  // ----- SETUP / QoL -----
+  { id: 'poh_buy', category: 'setup', icon: '🏠', priority: 2,
+    name: 'Buy a Player-Owned House (1,000 gp)',
+    reqs: {},
+    why: 'Required for House Tabs (teleports). Eventually for Gilded Altar (75 con).',
+    how: 'Estate Agent in Varrock, Falador, Seers\', Ardougne, Yanille, Hosidius, Brimhaven. Pick Rimmington at first.',
+    wiki: 'Player-owned house' },
+
+  { id: 'house_tabs', category: 'setup', icon: '🏠', priority: 2,
+    name: 'Stock up on House Teleport Tabs',
+    reqs: { skill: { construction: 1 } },
+    why: 'Free 1-click teleport to your house. Place house portals near banks via POH location.',
+    how: 'Buy from GE or make at POH lectern.',
+    wiki: 'Teleport to house' },
+
+  { id: 'antifire_stock', category: 'setup', icon: '🐲', priority: 3,
+    name: 'Stock Antifire potions + antifire shield',
+    reqs: { skill: { herblore: 47 } },
+    why: 'Mandatory for KBD, Vorkath, Bone Voyage. Without them dragons hit 50+.',
+    how: 'Make at 47 herblore (dragon scale dust + lantadyme + vial of water) or buy from GE.',
+    wiki: 'Antifire potion' },
+
+  { id: 'cannonball_stash', category: 'setup', icon: '🔨', priority: 3,
+    name: 'Cannonball smithing AFK profit (35 Smithing)',
+    reqs: { skill: { smithing: 35 } },
+    why: 'AFK at Edgeville furnace. ~200K gp/hr + Smithing XP. Need Dwarf Cannon quest first.',
+    how: 'Use steel bars + ammo mould in furnace. Set up TabSwapper plugin to autofocus.',
+    wiki: 'Cannonball' },
+
+  { id: 'wise_old_man', category: 'setup', icon: '📊', priority: 4,
+    name: 'Sign up for Wise Old Man tracker',
+    reqs: {},
+    why: 'Web-based long-term XP tracker, GG (group rivals), goals.',
+    how: 'Visit wiseoldman.net, search your name, you\'re auto-tracked.',
+    wiki: null },
+
+  // ----- KEY MILESTONES -----
+  { id: 'prayer_43', category: 'milestone', icon: '🙏', priority: 1,
+    name: 'Prayer 43 → Protect from Melee/Range/Magic',
+    reqs: {},
+    why: 'Single biggest combat unlock in the game. Makes every boss easier.',
+    how: 'Bury big bones or use Gilded Altar with dragon bones.',
+    wiki: 'Prayer' },
+
+  { id: 'prayer_70', category: 'milestone', icon: '🙏', priority: 3,
+    name: 'Prayer 70 → Piety (+20% melee accuracy/damage)',
+    reqs: {},
+    why: 'Massive melee DPS boost. Use at every boss.',
+    how: 'Complete King\'s Ransom quest first. Bones at Gilded Altar.',
+    wiki: 'Piety' },
+
+  { id: 'prayer_77', category: 'milestone', icon: '🙏', priority: 4,
+    name: 'Prayer 77 → Rigour + Augury',
+    reqs: { quest: "Sins of the Father" },
+    why: 'Best ranged/mage prayers (+20% damage). Required for Vorkath/etc.',
+    how: 'Complete Mournings End II for Rigour. Bones at Gilded Altar.',
+    wiki: 'Rigour' },
+
+  { id: 'cb_60', category: 'milestone', icon: '⚔️', priority: 2,
+    name: 'Combat 60 → Scurrius + Sand Crabs comfort',
+    reqs: {},
+    why: 'Lots of mid-game content unlocks open up.',
+    how: 'Crabs (Hosidius) at Attack/Strength stylestyle.',
+    wiki: 'Combat level' },
+
+  { id: 'cb_80', category: 'milestone', icon: '⚔️', priority: 3,
+    name: 'Combat 80 → Barrows / KBD / DKs',
+    reqs: {},
+    why: 'Threshold where most beginner-friendly bosses become viable.',
+    how: 'Nightmare Zone after Recipe for Disaster subs.',
+    wiki: 'Combat level' },
+
+  { id: 'first_quest_cape', category: 'milestone', icon: '🦸', priority: 5,
+    name: 'Eventually: Quest Cape (all quests done)',
+    reqs: {},
+    why: 'Best cosmetic cape. Unlocks every quest reward. Stats good too.',
+    how: 'Slowly chip away at quests using Quest Helper.',
+    wiki: 'Quest point cape' },
+];
+
+// ==========================================================
+// SKILL TIERS — per-skill training breakpoints
+// Each entry: { from, to, name, where, xpHr, why, reqs, wiki }
+// ==========================================================
+const SKILL_TIERS = {
+
+  attack: [
+    { from: 1,  to: 10, name: 'Chickens',     where: 'Lumbridge — east of castle by river',
+      xpHr: '8k',  why: 'Cannot hit you. Drops feathers (=gp). Bring iron scim.', reqs: 'none' },
+    { from: 10, to: 30, name: 'Cows',         where: 'Lumbridge — north of chickens or Falador east',
+      xpHr: '15k', why: '8 HP, drop cowhides (5–10 gp each = your first money).', reqs: 'none' },
+    { from: 30, to: 40, name: 'Sand Crabs',   where: 'Hosidius south coast (Crabclaw Isle dock)',
+      xpHr: '30k', why: 'Multi-combat AFK. No food needed — they regen you. Equip rune scim at 40.', reqs: '60 combat-ish for safety, none required' },
+    { from: 40, to: 70, name: 'Sand Crabs (rune scim → dragon scim)', where: 'Same spot',
+      xpHr: '50k', why: 'Switch to dragon scim at 60 Att (Monkey Madness I).', reqs: 'rune/dragon scim' },
+    { from: 70, to: 99, name: 'Nightmare Zone (Abyssal Whip)', where: 'Yanille NMZ',
+      xpHr: '70k', why: 'Hard AFK with absorption potions. Highest passive XP method.',
+      reqs: 'RFD subs (Pirate Pete, Awowogei, Skrach), 70 Att for whip' },
+  ],
+
+  strength: [
+    { from: 1,  to: 30, name: 'Same as Attack', where: 'Train with Attack style "Aggressive"',
+      xpHr: '—',  why: 'After Waterfall Quest you\'re already 30/30. Train aggressive style at Sand Crabs.', reqs: 'none' },
+    { from: 30, to: 70, name: 'Sand Crabs (Aggressive)', where: 'Crabclaw Isle',
+      xpHr: '50k', why: 'Equip best Str gear: rune scim → dragon scim at 60.', reqs: 'none' },
+    { from: 70, to: 99, name: 'NMZ', where: 'Yanille',
+      xpHr: '70k', why: 'Switch to whip + dragon defender; use Aggressive style.', reqs: 'RFD subs' },
+  ],
+
+  defence: [
+    { from: 1,  to: 30, name: 'Skipped till after Waterfall', where: '—',
+      xpHr: '—', why: 'Many beginners delay Defence on purpose. For a well-rounded account, train it after Waterfall to keep combat balanced.', reqs: 'none' },
+    { from: 30, to: 40, name: 'Sand Crabs (Defensive)', where: 'Crabclaw Isle',
+      xpHr: '20k', why: 'Unlocks Rune Platebody at 40 (after Dragon Slayer I).', reqs: 'none' },
+    { from: 40, to: 70, name: 'Sand/Ammonite Crabs (Defensive)', where: 'Fossil Island Ammo Crabs (after Bone Voyage)',
+      xpHr: '50k', why: 'Higher max HP = more sustain. Wear best armour.', reqs: 'Bone Voyage' },
+    { from: 70, to: 99, name: 'NMZ', where: 'Yanille', xpHr: '40k–60k',
+      why: 'Defensive style at NMZ. 70 = barrows gear; 75 = blessed dhide.', reqs: 'RFD subs' },
+  ],
+
+  hitpoints: [
+    { from: 1, to: 99, name: 'Auto-trained with combat', where: 'Anywhere',
+      xpHr: '—', why: 'HP trains automatically (1/3 of melee XP). Witch\'s House gives 6.3K (instant 23 HP!).', reqs: 'none' },
+  ],
+
+  ranged: [
+    { from: 1, to: 5,  name: 'Sand Crabs w/ shortbow + bronze arrows', where: 'Crabclaw Isle',
+      xpHr: '5k',  why: 'Cheap. AFK. Bring extra arrows.', reqs: 'none' },
+    { from: 5,  to: 20, name: 'Oak shortbow + iron arrows', where: 'Sand Crabs',
+      xpHr: '12k', why: 'Oak bow + iron arrows = cheap dps upgrade.', reqs: '5 Ranged' },
+    { from: 20, to: 30, name: 'Willow shortbow + steel arrows', where: 'Sand Crabs',
+      xpHr: '20k', why: 'Save arrows by doing Animal Magnetism at 30 → Ava\'s.', reqs: '20 Ranged' },
+    { from: 30, to: 50, name: 'Maple shortbow + Ava\'s Attractor', where: 'Ammonite Crabs (Fossil Island)',
+      xpHr: '30k', why: 'Ava\'s = automatic arrow pickup. Ammonite crabs hit cap of 1.', reqs: 'Animal Magnetism' },
+    { from: 50, to: 70, name: 'Magic shortbow + Ava\'s Accumulator', where: 'NMZ or Ammo crabs',
+      xpHr: '50k', why: 'MSB is the biggest ranged DPS jump in the game. Use rune arrows.', reqs: 'Animal Magnetism' },
+    { from: 70, to: 99, name: 'Toxic Blowpipe @ NMZ', where: 'NMZ Yanille',
+      xpHr: '90k', why: 'BP is BIS for training. Expensive (~3M).', reqs: 'Toxic blowpipe' },
+  ],
+
+  prayer: [
+    { from: 1,  to: 15, name: 'Big bones at Lumbridge altar', where: 'Lumbridge castle chapel',
+      xpHr: '15k', why: 'Free if you have bones. Skip and use Ectofuntus later if patient.', reqs: 'none' },
+    { from: 15, to: 43, name: 'Ensouled heads @ Arceuus altar', where: 'Dark Altar (Arceuus, Kourend)',
+      xpHr: '40k', why: 'BEST F2P-style prayer XP. Buy ensouled heads from GE, reanimate, kill.',
+      reqs: '5% Arceuus favour OR A Kingdom Divided' },
+    { from: 43, to: 70, name: 'Dragon bones @ Gilded Altar', where: 'Friend\'s POH or Yanille POH portal',
+      xpHr: '300k', why: 'Burners + dragon bones = 350 xp/bone (vs 72 at normal altar).',
+      reqs: '75 Construction (friend\'s house) OR rent altar' },
+    { from: 70, to: 99, name: 'Superior dragon bones / wyvern bones', where: 'Same — Gilded altar',
+      xpHr: '500k', why: 'Cost ~7-12 gp/xp. Save for when you can afford.', reqs: 'gp' },
+  ],
+
+  magic: [
+    { from: 1,  to: 13, name: 'Wind/Water/Earth Strike at Sand Crabs', where: 'Crabclaw Isle',
+      xpHr: '10k', why: 'Use Magic style + lowest enemy strike spell.', reqs: 'none' },
+    { from: 13, to: 25, name: 'Curse spell on Splashing setup', where: 'Splash NPCs (Monk of Zamorak, Knight of Ardougne)',
+      xpHr: '25k', why: 'Equip mage gear with negative magic bonus → 0% hit but full XP. Pure AFK.',
+      reqs: '13 Magic + curse runes' },
+    { from: 25, to: 55, name: 'High Alchemy', where: 'Bank',
+      xpHr: '78k', why: 'Alch lower-tier items for XP. Combo with other skills (mine, fish) for double progress.',
+      reqs: '55 Magic for High Alch — start with Low Alch at 21 if patient' },
+    { from: 55, to: 75, name: 'Splashing while you fish/woodcut', where: 'Wherever you are',
+      xpHr: '20k–40k', why: 'AFK splash burst spells while training another skill. Stack progress.',
+      reqs: '55 Magic' },
+    { from: 75, to: 99, name: 'Ice Barrage (multi)', where: 'Slayer dungeons or NMZ',
+      xpHr: '200k', why: 'Top-tier mage XP. Expensive runes.',
+      reqs: 'Desert Treasure I, 94 Magic' },
+  ],
+
+  cooking: [
+    { from: 1,  to: 33, name: 'Shrimps → Trout → Salmon at Hosidius range', where: 'Hosidius Mess hall (5% less burn)',
+      xpHr: '40k', why: 'Cook what you fish. Hosidius range cuts burn rate.', reqs: '5% Hosidius favour for range' },
+    { from: 33, to: 68, name: 'Lobsters / Swordfish at Hosidius range', where: 'Hosidius',
+      xpHr: '80k', why: 'Stop burning lobsters at 74. Buy from GE or fish them.', reqs: '5% Hosidius' },
+    { from: 68, to: 99, name: 'Wines of Zamorak', where: 'Bank standing',
+      xpHr: '480k', why: 'INSANE XP/hr but expensive. Alt: cook karambwans (180k xp/hr, profitable).',
+      reqs: '68 Cooking; karambwans = 30 Cooking + Tai Bwo Wannai Trio' },
+  ],
+
+  woodcutting: [
+    { from: 1,  to: 15, name: 'Trees (normal logs)', where: 'Lumbridge — anywhere',
+      xpHr: '10k', why: 'Burn logs for Firemaking XP too. Bronze axe → steel axe at 6.', reqs: 'none' },
+    { from: 15, to: 30, name: 'Oak trees', where: 'Draynor Village (3 oaks in a row by bank)',
+      xpHr: '25k', why: '5x more XP than normal trees. Draynor bank = no walking.', reqs: '15 WC' },
+    { from: 30, to: 60, name: 'Willows (or Teaks)', where: 'Draynor Village willows by bank',
+      xpHr: '50k', why: 'Willows = AFK + close to bank. Teaks at Castle Wars = 90k xp/hr but click-intensive.', reqs: '30 / 35 WC' },
+    { from: 60, to: 75, name: 'Yews', where: 'Lumbridge yews (3 right by castle)',
+      xpHr: '50k', why: 'Yew logs sell for gp. Drop the logs for max XP.', reqs: '60 WC' },
+    { from: 75, to: 99, name: 'Magic trees', where: 'Sorcerer\'s Tower / Mage Training Arena',
+      xpHr: '75k', why: 'Magic logs = excellent gp + xp combo.', reqs: '75 WC' },
+  ],
+
+  fishing: [
+    { from: 1,  to: 20, name: 'Shrimps + Anchovies', where: 'Al Kharid or Lumbridge swamp',
+      xpHr: '20k', why: 'Free start. Drop catches for max XP.', reqs: 'none' },
+    { from: 20, to: 40, name: 'Fly fish trout/salmon', where: 'Barbarian Village or Shilo Village',
+      xpHr: '40k', why: 'Need feathers (kill chickens for these).', reqs: '20 Fishing' },
+    { from: 40, to: 58, name: 'Lobsters', where: 'Catherby or Karamja',
+      xpHr: '40k', why: 'Cook them for cooking XP too. Sell for gp.', reqs: '40 Fishing' },
+    { from: 58, to: 62, name: 'Monkfish', where: 'Piscatoris Fishing Colony',
+      xpHr: '45k', why: 'Better xp/hr + a great food source.', reqs: 'Swan Song quest' },
+    { from: 62, to: 99, name: 'Barbarian fishing (3-tick) OR Karambwan', where: 'Otto\'s Grotto / Karamja',
+      xpHr: '60k–110k', why: 'Barb fishing trains Str + Agility too. Karambwan = #1 food in game.',
+      reqs: '48 Fishing + Otto for barb; 65 Fishing + Tai Bwo for karambwan' },
+  ],
+
+  firemaking: [
+    { from: 1, to: 15,  name: 'Normal logs', where: 'Grand Exchange paths',
+      xpHr: '15k', why: 'Buy logs from GE. Click line of logs on the ground.', reqs: 'none' },
+    { from: 15, to: 30, name: 'Oak logs', where: 'GE',
+      xpHr: '30k', why: 'Same idea, bigger XP/log.', reqs: '15 FM' },
+    { from: 30, to: 50, name: 'Maple logs', where: 'GE or chop yourself',
+      xpHr: '60k', why: 'Last stop before Wintertodt.', reqs: '30 FM' },
+    { from: 50, to: 99, name: '🔥 WINTERTODT', where: 'Wintertodt camp (north Great Kourend)',
+      xpHr: '300k+', why: 'Best FM method by far. Gives food, gp, supplies, and pet rolls. Group activity (safe).',
+      reqs: '50 FM' },
+  ],
+
+  mining: [
+    { from: 1, to: 15,  name: 'Copper + Tin', where: 'Lumbridge swamp mine',
+      xpHr: '15k', why: 'Make bronze bars for smithing too.', reqs: 'none' },
+    { from: 15, to: 30, name: 'Iron ore (power mine)', where: 'Al Kharid mine — 3 iron rocks in a triangle',
+      xpHr: '40k', why: '3-rock setup = no walking. Drop ore.', reqs: '15 Mining' },
+    { from: 30, to: 99, name: '⛏️ Motherlode Mine', where: 'Falador Dwarven Mine (entrance at south end)',
+      xpHr: '40k–80k', why: 'AFK, profitable (gold/dragonstones), unlocks Prospector outfit (+2.5% XP).',
+      reqs: '30 Mining' },
+    { from: 75, to: 99, name: 'Amethyst (alt)', where: 'Mining Guild upper',
+      xpHr: '40k', why: 'Profitable alternative. AFK.', reqs: '75 Mining' },
+  ],
+
+  smithing: [
+    { from: 1, to: 15,  name: 'Bronze daggers/bars', where: 'Lumbridge anvil',
+      xpHr: '15k', why: 'Quick start. The Knight\'s Sword quest gives 12,725 Smithing XP — do it!',
+      reqs: 'none' },
+    { from: 15, to: 30, name: 'Knight\'s Sword + iron items', where: 'Varrock anvil',
+      xpHr: '20k', why: 'Quest jumps you from 15→29 instantly.', reqs: '10 Mining' },
+    { from: 40, to: 60, name: '🔥 Blast Furnace (Steel bars)', where: 'Keldagrim',
+      xpHr: '60k', why: 'BF uses half the coal. Profitable + great XP.',
+      reqs: 'The Giant Dwarf, ~2.5K coins entry fee or 60 Smithing' },
+    { from: 60, to: 99, name: 'Blast Furnace (Gold/Mithril/Adamant/Rune)', where: 'Keldagrim',
+      xpHr: '100k+', why: 'Best XP/hr. Wear ice gloves to deposit hot bars.', reqs: '60 Smithing' },
+    { from: 50, to: 99, name: '✨ Alt: Giants\' Foundry', where: 'Cyclosis (after Sleeping Giants)',
+      xpHr: '100k', why: 'AFK-friendly, doesn\'t need ores, great pet rolls.',
+      reqs: 'Sleeping Giants miniquest' },
+  ],
+
+  crafting: [
+    { from: 1, to: 7,   name: 'Pots from soft clay', where: 'Barbarian Village wheel + Crafting Guild',
+      xpHr: '10k', why: 'Cheap start.', reqs: 'none' },
+    { from: 7, to: 33,  name: 'Leather armour (cowhides)', where: 'Al Kharid tannery → bank',
+      xpHr: '20k', why: 'Pairs with cow killing. Use needle + thread.', reqs: 'none' },
+    { from: 33, to: 46, name: 'Cut sapphires/emeralds', where: 'Bank',
+      xpHr: '40k', why: 'Buy uncut gems from GE.', reqs: '20-46 Crafting' },
+    { from: 46, to: 99, name: '🔥 Battlestaves (water/air etc.)', where: 'Bank',
+      xpHr: '100k+', why: 'Best XP/hr + profitable. Use battlestaff + orb.',
+      reqs: '54 Crafting for water staves; need quests for each' },
+    { from: 61, to: 99, name: 'Glassblowing (alt)', where: 'Anywhere with bank',
+      xpHr: '90k', why: 'AFK alternative.', reqs: '61 Crafting' },
+  ],
+
+  fletching: [
+    { from: 1, to: 20,  name: 'Arrow shafts → headless arrows', where: 'Bank',
+      xpHr: '20k', why: 'Chop trees for logs. Fastest start.', reqs: 'none' },
+    { from: 20, to: 35, name: 'Oak shortbow (u) → string', where: 'Bank',
+      xpHr: '40k', why: 'String for double XP.', reqs: '20 Fletching' },
+    { from: 35, to: 55, name: 'Willow longbow (u) → string', where: 'Bank',
+      xpHr: '80k', why: 'Long bows give more XP than short. Maple long at 55.', reqs: '35 Fletching' },
+    { from: 55, to: 99, name: 'Magic longbow (u) → string', where: 'Bank',
+      xpHr: '160k+', why: 'INSANE XP/hr. Or do "darts" for 800k+ xp/hr (90 Fletch).', reqs: '85 Fletching for magic long' },
+  ],
+
+  herblore: [
+    { from: 3,  to: 5,  name: 'Attack potions', where: 'Bank with vial of water + guam + eye of newt',
+      xpHr: '60k', why: 'Cheap. Start here right after Druidic Ritual.', reqs: 'Druidic Ritual' },
+    { from: 22, to: 38, name: 'Super Attack potions', where: 'Bank',
+      xpHr: '120k', why: '+25% xp/dose vs Attack pots.', reqs: '22 Herblore' },
+    { from: 38, to: 45, name: '🔥 Super Strength potions', where: 'Bank',
+      xpHr: '150k', why: '+5 Str → way more dps. Use them for Combat XP boost.',
+      reqs: '38 Herblore + limpwurt root + kwuarm' },
+    { from: 45, to: 55, name: 'Super Defence potions', where: 'Bank', xpHr: '170k',
+      why: 'Solid XP/cost.', reqs: '45 Herblore' },
+    { from: 55, to: 63, name: 'Super Restore / Antifire potions', where: 'Bank',
+      xpHr: '190k', why: 'Antifire prep for Dragon Slayer / KBD.', reqs: '55 Herblore' },
+    { from: 63, to: 99, name: 'Prayer potions', where: 'Bank',
+      xpHr: '210k', why: 'Profit + great XP. Make in batches at the GE.', reqs: '63 Herblore + Ranarr + Snape grass' },
+  ],
+
+  agility: [
+    { from: 1,  to: 37, name: 'Gnome Stronghold course', where: 'Tree Gnome Stronghold',
+      xpHr: '10k', why: 'Where everyone starts. Marks of grace = Graceful outfit!',
+      reqs: 'none — Graceful outfit reduces weight, faster run regen' },
+    { from: 37, to: 50, name: 'Draynor Village Rooftop', where: 'Draynor',
+      xpHr: '15k', why: 'Marks of grace + close to bank.', reqs: '37 Agility' },
+    { from: 50, to: 60, name: 'Varrock Rooftop', where: 'Varrock — start near east bank',
+      xpHr: '25k', why: 'More marks of grace per hour.', reqs: '40 Agility (50 recommended)' },
+    { from: 60, to: 80, name: 'Canifis Rooftop', where: 'Canifis',
+      xpHr: '40k', why: 'Highest mark-of-grace rate in mid-game.',
+      reqs: '40 Agility + Priest in Peril' },
+    { from: 80, to: 99, name: 'Ardougne Rooftop', where: 'Ardougne',
+      xpHr: '60k', why: 'Best rooftop until 99. Switch to Hallowed Sepulchre if 92+.',
+      reqs: '90 Agility for Ardy' },
+  ],
+
+  thieving: [
+    { from: 1,  to: 5,  name: 'Pickpocket Men', where: 'Lumbridge / Draynor',
+      xpHr: '8k', why: 'Free gp. Wear nothing valuable.', reqs: 'none' },
+    { from: 5,  to: 25, name: 'Bakery stall', where: 'Ardougne market',
+      xpHr: '25k', why: 'Eat the bread you steal — saves food costs.', reqs: '5 Thieving' },
+    { from: 25, to: 38, name: 'Fruit stall', where: 'Hosidius',
+      xpHr: '45k', why: 'No guard aggro. Sell strange fruits.',
+      reqs: '25 Thieving + 15% Hosidius favour' },
+    { from: 38, to: 55, name: 'Master Farmer (seeds)', where: 'Draynor Village or Hosidius',
+      xpHr: '40k', why: 'Profitable seeds for farming runs.', reqs: '38 Thieving' },
+    { from: 55, to: 99, name: 'Ardougne Knights (Dodgy Necklace)', where: 'Ardougne market',
+      xpHr: '90k+', why: 'Best thieving XP for ages. Wear dodgy necklace (Rogues outfit too).',
+      reqs: '55 Thieving + Ardougne Hard diary preferred' },
+  ],
+
+  slayer: [
+    { from: 1,  to: 20, name: 'Turael tasks (cancel hard ones)', where: 'Burthorpe',
+      xpHr: '15k', why: 'Easy tasks. Skip cave bugs / wolves if you hate them.', reqs: 'none' },
+    { from: 20, to: 50, name: 'Mazchna tasks', where: 'Canifis (Priest in Peril required)',
+      xpHr: '25k', why: 'Better XP, varied tasks.', reqs: '20 Combat + Priest in Peril' },
+    { from: 50, to: 75, name: 'Vannaka / Chaeldar', where: 'Edgeville dungeon / Zanaris',
+      xpHr: '40k', why: 'Higher level monsters, better drops.', reqs: '40+ Combat' },
+    { from: 75, to: 99, name: 'Konar quo Maten (drops brimstone keys)', where: 'Mount Karuulm',
+      xpHr: '50k', why: 'Brimstone keys = big GP. Or Duradel/Nieve for varied tasks.',
+      reqs: '75 Combat for Konar' },
+  ],
+
+  farming: [
+    { from: 1, to: 99, name: 'Tree runs + herb runs every 5–80 mins', where: 'All farming patches',
+      xpHr: '50k/run', why: '🌿 Best skill in the game. ~5 min runs, free 50K+ XP each day. Tree at 15, fruit tree at 27, herbs from 3.',
+      reqs: 'saplings/seeds, ~5 mins per session' },
+  ],
+
+  runecraft: [
+    { from: 1,  to: 9,  name: 'Air runes', where: 'Air altar (west of Falador)',
+      xpHr: '5k', why: 'Use rune pouch + glory amulet to teleport.', reqs: 'none' },
+    { from: 9,  to: 44, name: 'Earth runes via Abyss', where: 'Abyss (north Edgeville)',
+      xpHr: '15k', why: 'Faster than normal route. Wilderness — bring no valuables.',
+      reqs: 'Enter the Abyss miniquest' },
+    { from: 44, to: 77, name: 'Nature runes via Abyss', where: 'Abyss → nature altar',
+      xpHr: '25k + 1m gp/hr', why: 'Profitable. Use pouches + Amulet of glory.', reqs: '44 RC + abyss' },
+    { from: 77, to: 99, name: 'Blood runes (Arceuus)', where: 'Arceuus blood altar',
+      xpHr: '40k + profit', why: 'AFK-ish, profitable.', reqs: 'Sins of the Father' },
+  ],
+
+  hunter: [
+    { from: 1,  to: 9,  name: 'Crimson swift', where: 'Feldip Hills (bird snares)',
+      xpHr: '15k', why: 'Bird snare hunting basics.', reqs: 'none' },
+    { from: 9,  to: 29, name: 'Tropical wagtail / Cerulean twitch', where: 'Feldip Hills',
+      xpHr: '30k', why: 'Set 2-3 traps as level increases.', reqs: '9/19 Hunter' },
+    { from: 29, to: 43, name: 'Spotted kebbits (deadfall traps)', where: 'Piscatoris Hunter Area',
+      xpHr: '40k', why: 'Furs = profit. Need quick reactions.', reqs: '29 Hunter' },
+    { from: 43, to: 63, name: 'Red salamanders', where: 'Ourania Cave',
+      xpHr: '60k', why: 'Net trap. Stop here if doing combat with salamanders.',
+      reqs: '47 Hunter' },
+    { from: 63, to: 99, name: 'Black chinchompas (PvP risk) or red chins (safe)', where: 'Wilderness / Feldip',
+      xpHr: '90k + profit', why: 'Black chins = best gp/hr, danger. Reds = safe, slightly less.',
+      reqs: '63/73 Hunter' },
+  ],
+
+  construction: [
+    { from: 1,  to: 33, name: 'Crude wooden chair → Oak chair', where: 'Your POH',
+      xpHr: '40k', why: 'Buy plank from butler. Get house teleport tab from Lumbridge.',
+      reqs: 'Buy a house (1000 gp Estate Agent)' },
+    { from: 33, to: 52, name: 'Oak larder', where: 'POH kitchen',
+      xpHr: '120k', why: 'Best XP at this range. Use Demon Butler (50 Construction).',
+      reqs: '33 Construction' },
+    { from: 52, to: 74, name: 'Mahogany table', where: 'POH dining room',
+      xpHr: '300k', why: 'Mahogany planks. Insane XP but expensive (~25M to 99).',
+      reqs: '52 Construction' },
+    { from: 74, to: 99, name: 'Gnome benches / mythical capes', where: 'POH',
+      xpHr: '600k', why: 'Top-tier XP. Save up first.', reqs: '74 Construction' },
+  ],
+};
+
+// ==========================================================
+// COMBAT GEAR BREAKPOINTS
+// ==========================================================
+const GEAR_BREAKPOINTS = {
+  melee: [
+    { lvl: 1,  item: 'Iron scimitar',     slot: 'weapon', where: 'GE — ~50 gp' },
+    { lvl: 5,  item: 'Steel scimitar',    slot: 'weapon', where: 'GE — ~150 gp' },
+    { lvl: 10, item: 'Black scimitar',    slot: 'weapon', where: 'GE — ~500 gp', notes: 'Highest slash bonus before Mithril' },
+    { lvl: 20, item: 'Mithril scimitar',  slot: 'weapon', where: 'GE — ~200 gp' },
+    { lvl: 30, item: 'Adamant scimitar',  slot: 'weapon', where: 'GE — ~1k gp' },
+    { lvl: 40, item: 'Rune scimitar',     slot: 'weapon', where: 'GE — ~15k gp' },
+    { lvl: 40, item: 'Granite hammer',    slot: 'weapon', where: 'Grotesque Guardians (60 slayer) or GE', notes: 'Niche spec weapon' },
+    { lvl: 60, item: 'Dragon scimitar',   slot: 'weapon', where: 'Monkey Madness I reward', notes: '🔥 Big jump' },
+    { lvl: 70, item: 'Abyssal whip',      slot: 'weapon', where: 'Abyssal demons (85 Slayer) or GE ~1.5M', notes: 'Goal weapon' },
+
+    { lvl: 1,  item: 'Iron full helm',    slot: 'head' },
+    { lvl: 30, item: 'Adamant full helm', slot: 'head' },
+    { lvl: 40, item: 'Rune full helm',    slot: 'head' },
+    { lvl: 45, item: 'Helm of Neitiznot', slot: 'head', where: 'Fremennik Isles quest', notes: '+3 str — wear above rune helm' },
+
+    { lvl: 1,  item: 'Iron chainbody',    slot: 'body' },
+    { lvl: 40, item: 'Rune platebody',    slot: 'body', notes: 'Requires Dragon Slayer I' },
+
+    { lvl: 1,  item: 'Iron platelegs',    slot: 'legs' },
+    { lvl: 40, item: 'Rune platelegs',    slot: 'legs' },
+
+    { lvl: 31, item: 'Climbing boots',    slot: 'boots', where: 'Death Plateau quest', notes: '+1 Str' },
+    { lvl: 60, item: 'Dragon boots',      slot: 'boots', where: 'Spiritual creatures (60 slayer)', notes: '60 Def' },
+
+    { lvl: 1,  item: 'Amulet of strength', slot: 'amulet', where: 'GE — ~1k' },
+    { lvl: 50, item: 'Amulet of glory',    slot: 'amulet', where: 'GE — ~10k', notes: 'Teleports + stats' },
+    { lvl: 70, item: 'Amulet of fury',     slot: 'amulet', where: 'GE — ~3M', notes: 'BIS until Torture' },
+  ],
+
+  ranged: [
+    { lvl: 1,  item: 'Shortbow + bronze arrows', slot: 'weapon' },
+    { lvl: 5,  item: 'Oak shortbow + iron arrows', slot: 'weapon' },
+    { lvl: 20, item: 'Willow shortbow + steel arrows', slot: 'weapon' },
+    { lvl: 30, item: 'Maple shortbow + mithril arrows', slot: 'weapon' },
+    { lvl: 40, item: 'Maple shortbow + adamant arrows', slot: 'weapon' },
+    { lvl: 50, item: '✨ Magic shortbow + rune arrows', slot: 'weapon', notes: 'BIG damage jump + spec' },
+    { lvl: 61, item: 'Rune crossbow + diamond bolts (e)', slot: 'weapon', notes: 'With Animal Magnetism Ava\'s' },
+    { lvl: 75, item: 'Toxic blowpipe', slot: 'weapon', notes: 'BIS for training and most bosses' },
+
+    { lvl: 30, item: "Ava's Attractor",   slot: 'cape', where: 'Animal Magnetism', notes: 'Picks up ammo' },
+    { lvl: 50, item: "Ava's Accumulator", slot: 'cape', where: 'Animal Magnetism (50 ranged version)' },
+
+    { lvl: 1,  item: 'Leather body → Studded → Green dhide', slot: 'body' },
+    { lvl: 40, item: 'Green dragonhide body', slot: 'body', notes: '40 ranged' },
+    { lvl: 50, item: 'Blue dragonhide body',  slot: 'body', notes: '50 ranged' },
+    { lvl: 60, item: 'Red dragonhide body',   slot: 'body', notes: '60 ranged' },
+    { lvl: 70, item: 'Black dragonhide body', slot: 'body', notes: '70 ranged' },
+  ],
+
+  magic: [
+    { lvl: 1,  item: 'Staff of air (free unlimited air runes)', slot: 'weapon' },
+    { lvl: 30, item: 'Mystic robes (mid-tier)', slot: 'body', where: 'GE' },
+    { lvl: 50, item: 'God cape (Mage Arena 1)', slot: 'cape' },
+    { lvl: 60, item: 'Mystic robes (top)', slot: 'body' },
+    { lvl: 75, item: 'Trident of the Seas',  slot: 'weapon', where: 'Kraken slayer' },
+    { lvl: 75, item: 'Ahrim\'s robe top',    slot: 'body', where: 'Barrows' },
+  ],
+};
+
+// ==========================================================
+// BOSSES — sequenced PvM ladder
+// ==========================================================
+const BOSSES = [
+  { id: 'scurrius',       name: 'Scurrius',       reqs: { combat: 60 },
+    suggestedStats: 'Combat 60+, dragon scim or above',
+    location: 'Varrock Sewers',
+    loot: 'Scurrius spine (stab bonus), big bones, gp',
+    why: 'Designed for newbies. Best beginner boss. Solo or grouped.', wiki: 'Scurrius' },
+
+  { id: 'bryophyta',      name: 'Bryophyta',      reqs: { att: 60, str: 60 },
+    suggestedStats: 'Att/Str 60+, dragon scim, prayer 43',
+    location: 'Varrock Sewers behind locked door (mossy key drop)',
+    loot: 'Bryophyta\'s essence → staff (autocast nature runes)',
+    why: 'Easy F2P-style mini boss. Decent magic weapon for noobs.', wiki: 'Bryophyta' },
+
+  { id: 'obor',           name: 'Obor',           reqs: { combat: 70 },
+    suggestedStats: 'Combat 70+, prayer 43',
+    location: 'Edgeville Dungeon (Hill Giants area, needs Giant key)',
+    loot: 'Hill giant club (str), gp', why: 'Another beginner-friendly mini boss.', wiki: 'Obor' },
+
+  { id: 'sarachnis',      name: 'Sarachnis',      reqs: { combat: 80, prayer: 43 },
+    suggestedStats: 'Whip or dragon scim, full rune+', location: 'Forthos Dungeon (Kourend)',
+    loot: 'Sarachnis cudgel (str + heal on hit)', why: 'Step up from Scurrius. Sustainable solo.', wiki: 'Sarachnis' },
+
+  { id: 'barrows',        name: 'Barrows',        reqs: { prayer: 43, combat: 80 },
+    suggestedStats: 'Need 6 Barrows brothers — gear varies', location: 'Morytania — Burgh de Rott',
+    loot: 'Barrows armour sets (often BIS in their style)',
+    why: 'Worth doing 1× per day forever. Predictable, AFK-ish.',
+    wiki: 'Barrows' },
+
+  { id: 'dks',            name: 'Dagannoth Kings (DKs)', reqs: { combat: 90 },
+    suggestedStats: 'Dragon scim/whip, range/mage rotation', location: 'Waterbirth Island',
+    loot: 'Berserker ring, Archer ring, Seers ring, Dragon axe',
+    why: 'Best ring drops in the game. Need Horror from the Deep partway.', wiki: 'Dagannoth_Kings' },
+
+  { id: 'kbd',            name: 'King Black Dragon', reqs: { combat: 80, range_or_mage: 70 },
+    suggestedStats: 'Antifire potion + shield, blowpipe/crossbow', location: 'KBD lair (Wilderness)',
+    loot: 'Dragon med helm, draconic visage (rare)',
+    why: 'Easy dragon boss. Wear nothing valuable — Wilderness.', wiki: 'King_Black_Dragon' },
+
+  { id: 'vorkath',        name: 'Vorkath',        reqs: { range: 75, def: 70, prayer: 74 },
+    suggestedStats: '75 Range (Blowpipe), 74 Prayer (Rigour), antifire',
+    location: 'Ungael (Dragon Slayer II)',
+    loot: 'Vorkath head, dragon items, scales',
+    why: '🔥 Best money-maker in mid-game. 2-3M gp/hr once learned.',
+    wiki: 'Vorkath' },
+
+  { id: 'zulrah',         name: 'Zulrah',         reqs: { range: 75, mage: 75 },
+    suggestedStats: 'Blowpipe + Trident, 75 Range + 75 Mage min',
+    location: 'Zul-Andra (Regicide)',
+    loot: 'Tanzanite/magma fang → Toxic blowpipe, Tanzanite mutagen',
+    why: 'Classic money boss. 1-2M gp/hr.', wiki: 'Zulrah' },
+];
+
+// ==========================================================
+// MONEY MAKING — sorted from low reqs to high
+// ==========================================================
+const MONEY_METHODS = [
+  { name: 'Stronghold of Security (one-time 10K)', gpHr: '—',
+    reqs: 'None', summary: 'Complete all 4 floors → 10K gp + Fancy/Fighter boots. 30 min one-time.',
+    wiki: 'Stronghold_of_Security' },
+
+  { name: 'Killing Chickens (feathers)', gpHr: '50k',
+    reqs: 'None', summary: 'Lumbridge chickens drop feathers (~10 gp each). Combat XP + steady income.',
+    wiki: 'Chicken' },
+
+  { name: 'Selling Cowhides', gpHr: '80k',
+    reqs: 'None', summary: 'Kill cows at Lumbridge, sell hides at GE (~50 gp each).',
+    wiki: 'Cowhide' },
+
+  { name: 'Wine of Zamorak telegrab', gpHr: '300k',
+    reqs: '33 Magic + Telekinetic Grab', summary: 'Telegrab wine from Asgarnia altar. Risky if not paying attention.',
+    wiki: 'Telekinetic_Grab' },
+
+  { name: 'Tanning Cowhides for others', gpHr: '60k',
+    reqs: 'None', summary: 'Buy hides → tan at Al Kharid → resell. Margins via GE flips.',
+    wiki: 'Cowhide' },
+
+  { name: 'Motherlode Mine', gpHr: '120k–200k',
+    reqs: '30 Mining', summary: 'Gold ore, gem rolls, full sack profits. Trains Mining + AFK.',
+    wiki: 'Motherlode_Mine' },
+
+  { name: 'Karambwan fishing', gpHr: '500k',
+    reqs: '65 Fishing + Tai Bwo Wannai Trio', summary: 'Top-tier food for PvM, always in demand.',
+    wiki: 'Raw_karambwan' },
+
+  { name: 'Blast Furnace (gold bars)', gpHr: '600k',
+    reqs: '40 Smithing + ice gloves', summary: 'Profit from gold bar margins. Stamina pots help.',
+    wiki: 'Blast_Furnace' },
+
+  { name: 'Herb runs (every 80 min)', gpHr: '~5m/day',
+    reqs: '32+ Farming', summary: '5 patches × 5 min = ~500K-1M gp per run. Passive income.',
+    wiki: 'Farming' },
+
+  { name: 'Wintertodt rewards (Burnt page, supplies)', gpHr: '~200k',
+    reqs: '50 Firemaking', summary: 'Pet rolls, supplies, FM XP — all in one.',
+    wiki: 'Wintertodt' },
+
+  { name: 'Barrows (1× per day)', gpHr: 'Varies — average 300k/chest',
+    reqs: 'Priest in Peril + combat ~80', summary: 'High variance, but Barrows pieces ~3-5M each.',
+    wiki: 'Barrows' },
+
+  { name: 'Vorkath', gpHr: '2m–3m',
+    reqs: 'Dragon Slayer II + 75 Range + 74 Prayer', summary: 'King of mid-game money. Learn the rotation.',
+    wiki: 'Vorkath' },
+
+  { name: 'Zulrah', gpHr: '1.5m–2.5m',
+    reqs: '75 Range + 75 Mage + Regicide', summary: 'Classic money. More mechanics than Vorkath.',
+    wiki: 'Zulrah' },
+];
+
+// ==========================================================
+// RUNELITE PLUGINS — essentials for beginners
+// ==========================================================
+const PLUGINS = [
+  { name: 'Quest Helper', priority: 'MUST-HAVE',
+    what: 'Step-by-step in-game arrows + checklists for every quest. Tells you what to do, where to go, what items you need.',
+    why: 'Game-changer. You will never have to alt-tab to a wiki guide again.',
+    how: 'Install via RuneLite Plugin Hub → enable. Click the helmet icon in side panel → choose a quest.' },
+
+  { name: 'Ground Items', priority: 'MUST-HAVE',
+    what: 'Highlights item drops with color-coded value labels.',
+    why: 'Stops you accidentally walking past valuable loot.',
+    how: 'Settings: set "Highlight overlay" to ALL. Customize value thresholds.' },
+
+  { name: 'NPC Indicators', priority: 'MUST-HAVE',
+    what: 'Highlights NPCs you can attack (or your current target).',
+    why: 'Critical for slayer + crowded areas like Sand Crabs.',
+    how: 'Settings → set hull/tile color, list NPC names to highlight.' },
+
+  { name: 'Tile Indicators', priority: 'HIGH',
+    what: 'Highlights tiles you click on. Helpful for bossing routes.',
+    why: 'Lets you mark specific tiles for boss safespots / shortcuts.',
+    how: 'Shift+right-click any tile → Mark/Unmark.' },
+
+  { name: 'XP Tracker', priority: 'MUST-HAVE',
+    what: 'Real-time XP gains per skill, XP/hr, time to next level.',
+    why: 'Motivation. See your gains as you train.',
+    how: 'Built-in, just enable. Resets per session.' },
+
+  { name: 'Inventory Tags', priority: 'HIGH',
+    what: 'Color borders on inventory items.',
+    why: 'Spot food/potions instantly in chaotic PvM.',
+    how: 'Shift+right-click inventory item → assign color.' },
+
+  { name: 'Menu Entry Swapper', priority: 'MUST-HAVE',
+    what: 'Reorders right-click menus. Make "Take" default on ground items, "Cast" default on staves, etc.',
+    why: 'Massive QoL. No more misclicks at bank or banks.',
+    how: 'Settings → "Custom Swaps" → add per NPC/item.' },
+
+  { name: 'Idle Notifier', priority: 'HIGH',
+    what: 'Tings/notification when you stop training (e.g., out of food, fish gone).',
+    why: 'AFK skilling without losing time.',
+    how: 'Enable, set notifications.' },
+
+  { name: 'Bank Tags', priority: 'HIGH',
+    what: 'Custom bank tabs by tag. Make a "Slayer" tag, "Barrows" tag, etc.',
+    why: 'Pre-set loadouts. Click tab → withdraw all → go.',
+    how: 'Bank → tag icon. Drag items onto tag.' },
+
+  { name: 'World Map', priority: 'MUST-HAVE',
+    what: 'Improved world map with searchable POIs.',
+    why: 'Wiki-quality map directly in-game.',
+    how: 'Built-in. Click map icon.' },
+
+  { name: 'Camera', priority: 'HIGH',
+    what: 'Zoom out further. Disables camera shake. Compass click → invert pitch.',
+    why: 'Makes the game feel modern. Helps see surroundings.',
+    how: 'Settings → enable "Zoom out further" + your tweaks.' },
+
+  { name: 'Slayer plugin', priority: 'HIGH (when you start Slayer)',
+    what: 'Shows current task, remaining count, XP/kill.',
+    why: 'Required for tracking Slayer streaks.',
+    how: 'Enabled by default. Get a task → counter appears.' },
+
+  { name: 'Inventory Setups', priority: 'MID',
+    what: 'Save inventory + gear loadouts for different activities.',
+    why: 'One-click "Slayer setup" or "Barrows setup".',
+    how: 'Side panel → Inventory Setups → New Setup → screenshot current.' },
+
+  { name: 'Notifier (Discord)', priority: 'OPTIONAL',
+    what: 'Sends pet drops, level-ups, rare drops to a Discord webhook.',
+    why: 'Brag-worthy moments saved forever.',
+    how: 'Plugin Hub → Notifier. Set up Discord webhook URL.' },
+
+  { name: 'Boss Timers / Tile Markers', priority: 'LATER',
+    what: 'Boss attack rotation timers, safespot tiles.',
+    why: 'Essential for harder bosses. Skip until you start Sarachnis+.',
+    how: 'Plugin Hub → "Boss Timers" + boss-specific tile sets.' },
+];
+
+// ==========================================================
+// ACHIEVEMENT DIARIES — easy tier (the highest leverage for beginners)
+// ==========================================================
+const DIARIES_EASY = [
+  { region: 'Karamja', tier: 'Easy',
+    reward: 'Karamja gloves 1: free teleport to Karamja, +10% banana picking',
+    tasks: [
+      'Pick 5 bananas from the plantation north of the volcano.',
+      'Use the rope swing in Karamja agility course (Brimhaven dungeon).',
+      'Mine some gold from the rocks on Karamja.',
+      'Take the ferry from Port Sarim to Musa Point.',
+      'Catch a raw anchovy or sardine on Karamja.',
+      'Kill a jogre in Pollnivneach OR a jogre on Karamja.',
+      'Use Sir Vyralin\'s alter (Glough\'s hut, Tree Gnome Stronghold).',
+      'Kill a moss giant in the dungeon under the volcano.',
+      'Use the fishing spots at the central Karamja lake.',
+      'Explore the cave entrance west of Brimhaven.',
+    ] },
+
+  { region: 'Lumbridge & Draynor', tier: 'Easy',
+    reward: 'Explorer\'s ring 1: unlimited run replenish + 30% run replenish daily',
+    tasks: [
+      'Pickpocket a Lumbridge man or woman (1 thieving).',
+      'Get a slayer task from Turael.',
+      'Plant onions in the Lumbridge allotment patch.',
+      'Have Father Aereck open the Restless Ghost\'s coffin.',
+      'Catch herring at the Lumbridge swamp fishing spot.',
+      'Bake bread on the Lumbridge castle range.',
+      'Chop down + light a tree in Lumbridge (anywhere).',
+      'Kill a giant rat in the Lumbridge sewers.',
+      'Steal from the Lumbridge market stall.',
+      'Defeat a banshee in the Slayer Tower.',
+    ] },
+
+  { region: 'Varrock', tier: 'Easy',
+    reward: 'Varrock armor 1: 100% chance to mine 2 ores per swing (up to iron) + 10% Edgeville monastery prayer restore',
+    tasks: [
+      'Have Aubury teleport you to the Essence Mine.',
+      'Mine some iron in the southeast Varrock mine.',
+      'Use the spirit tree in Varrock Sewers (south end).',
+      'Speak to Hartwin in Varrock palace courtyard.',
+      'Get a haircut from the Varrock barber.',
+      'Buy a newspaper from the Varrock newspaper boy.',
+      'Plant a wood scroll in the Sawmill operator\'s notepad.',
+      'Steal from the tea stall in Varrock.',
+      'Kill an Earth Warrior in the Wilderness dungeon.',
+      'Speak to Cassie in west Varrock.',
+    ] },
+];
+
+// ==========================================================
+// GOLDEN RULES — common beginner mistakes & wisdom
+// ==========================================================
+const GOLDEN_RULES = [
+  { rule: '💎 Never drop trim or gold-trimmed armor', detail: 'Trim looks slightly different but is worth WAY more. If unsure, bank it.' },
+  { rule: '🚫 Strangers offering "free items" are scammers', detail: 'No one gives free stuff. Switching trade screens, doubling money offers, pin requests — all scams.' },
+  { rule: '⚠️ Never enter the Wilderness with anything you can\'t lose', detail: 'PKers will kill you. Below level 20 wildy you keep 3 items on death (4 with Protect Item). Above 20 you keep 3. Bring junk.' },
+  { rule: '🛡️ At Prayer 25, equip an Amulet of Protection from Saradomin\'s temple', detail: 'Not real — but at Prayer 43 unlock "Protect from Melee/Range/Mage" — they\'re game-changing for combat.' },
+  { rule: '💀 Hardcore deaths are permanent', detail: 'If you ever roll a HCIM, expect to die in a Slayer dungeon. Test stuff on a regular account first.' },
+  { rule: '👀 Right-click EVERYTHING', detail: 'Most NPCs/items have hidden options. Right-click → explore. Discovery is half the game.' },
+  { rule: '📚 The Wiki is your friend', detail: 'oldschool.runescape.wiki — every quest, monster, drop table. Press F1 in-game for shortcut once configured.' },
+  { rule: '⌚ Don\'t train Defence on a pure account (only if you want PvP)', detail: 'For a well-rounded acc → train Defence freely. Pures intentionally keep Defence at 1.' },
+  { rule: '🧪 ALWAYS drink a Stamina potion before any 30+ min skilling session', detail: 'Run energy = time. Stamina pots restore 20% energy per dose, lasts 2 min.' },
+  { rule: '🏃 Get Graceful outfit ASAP (Agility marks of grace)', detail: 'Reduces weight + 30% faster run regen. Full set ≈ 260 marks.' },
+  { rule: '💼 Keep your bank organized with tabs from day 1', detail: 'It gets ugly fast. Tabs: gear / runes / food / quest / skilling / misc.' },
+  { rule: '🎯 Set goals 1 day, 1 week, 1 month in advance', detail: 'OSRS is a marathon. Pick "next combat upgrade" or "next quest" and grind toward it.' },
+  { rule: '🌿 Do farm runs the moment you log in', detail: '5 minutes → 30K+ XP and free herbs. Even at 32 farming.' },
+  { rule: '👥 Join a clan', detail: 'Free advice, group bosses, motivation. Beginner-friendly: "OSRS Wiki" or "Friendly Newbies".' },
+  { rule: '⚒️ Get the "skilling outfits" — they\'re permanent XP boosts', detail: 'Prospector (Mining), Angler (Fishing), Lumberjack (WC), Pyromancer (FM), Rogue (Thieving), Graceful (Agility).' },
+  { rule: '💍 Buy Amulet of Glory ASAP (~10K gp)', detail: '4 free teleports per charge: Edgeville, Karamja, Draynor Village, Al Kharid. Game-changer.' },
+  { rule: '🐲 Antifire potion before any dragon', detail: 'Without it, dragons hit 50+ damage on you. With it + antifire shield = 0 damage.' },
+  { rule: '🔁 Logout safespots aren\'t exploits', detail: 'Tab logout (top right) is fine. NPCs forget you after 60 seconds outside combat.' },
+];
+
+// ==========================================================
+// KEYBINDS — game + RuneLite shortcuts
+// ==========================================================
+const KEYBINDS = [
+  { key: 'F1', what: 'Inventory tab' },
+  { key: 'F2', what: 'Skills tab' },
+  { key: 'F3', what: 'Quest tab' },
+  { key: 'F4', what: 'Equipment tab' },
+  { key: 'F5', what: 'Prayer tab' },
+  { key: 'F6', what: 'Magic spellbook' },
+  { key: 'F7', what: 'Clan / Chat-channel' },
+  { key: 'Esc', what: 'Close current interface (bank, etc.)' },
+  { key: 'Space', what: 'Continue dialogue (clicks "next")' },
+  { key: '1–0', what: 'Click numbered button in dialogue' },
+  { key: 'Ctrl + click', what: 'Forces walk instead of run' },
+  { key: 'Shift + drop', what: '(In RuneLite settings) drop items in 1 click instead of menu' },
+  { key: 'Shift + right-click NPC', what: 'Mark/Unmark a tile (Tile Indicators plugin)' },
+  { key: 'Alt + drag', what: 'Move UI widgets in RuneLite' },
+  { key: 'Right-click anywhere', what: 'Hidden options. Often: trade, examine, attack-style.' },
+  { key: 'Alt + click', what: 'Examine instead of left-click action' },
+];
