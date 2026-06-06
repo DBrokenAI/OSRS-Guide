@@ -130,8 +130,9 @@ const UI = (() => {
 
     function renderCard(r, badge, doneable) {
       const key = recKey(r);
+      const isLocked = r.tag === 'locked';
       return `
-        <div class="card">
+        <div class="card" ${isLocked ? 'style="opacity:0.85;"' : ''}>
           <div class="card-header">
             <div class="card-title">
               <span style="font-size:22px;">${r.icon}</span>
@@ -142,6 +143,11 @@ const UI = (() => {
               ${badge ? `<span class="tag ${badge === 'TOP' ? 'gold' : 'locked'}">${badge}</span>` : ''}
             </div>
           </div>
+          ${r.unlockLabel ? `
+            <div style="margin:8px 0 0;padding:6px 12px;background:linear-gradient(90deg,var(--pink-50),transparent);border-left:3px solid var(--pink-400);border-radius:8px;font-size:13px;font-weight:600;color:var(--pink-600);">
+              📌 Do this at: ${r.unlockLabel}
+            </div>
+          ` : ''}
           <p style="margin:6px 0 0;color:var(--text-soft);">${r.detail || ''}</p>
           <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;">
             ${r.wiki ? `<a class="wiki-link" target="_blank" href="${r.wiki}">Wiki →</a>` : ''}
@@ -164,11 +170,11 @@ const UI = (() => {
       ${recs.map(r => renderCard(r, r.priority === 1 ? 'TOP' : null, true)).join('')}
 
       ${upcoming.length ? `
-        <h3>🔜 Coming Soon (within ~10 levels)</h3>
+        <h3>🔜 Coming Up — your roadmap</h3>
         <p style="color:var(--text-soft);font-size:13px;margin-top:-4px;">
-          Things to plan for as she levels up. Each one tells you exactly what to train.
+          Sorted by what unlocks next. Each card shows exactly what level you need. ✨
         </p>
-        ${upcoming.map(r => renderCard(r, 'soon', false)).join('')}
+        ${upcoming.map(r => renderCard(r, null, false)).join('')}
       ` : ''}
 
       <h3>🌟 Lifetime Goals (always working toward these)</h3>

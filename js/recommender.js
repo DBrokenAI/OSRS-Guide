@@ -66,47 +66,68 @@ const Recommender = (() => {
       .sort((a, b) => (a.priority || 9) - (b.priority || 9));
   }
 
-  // "Soon" — within ~10 levels of one missing req
-  function nearMasterTasks(stats, completedIds) {
+  // Compute the smallest "distance" (combined missing levels) to readiness
+  function readinessGap(reqs, stats, completedIds) {
     const cb = currentCombatLevel(stats);
+    let total = 0;
+    let maxSingle = 0;
+    const missing = [];
+    if (!reqs) return { total: 0, maxSingle: 0, missing };
+    if (reqs.combat) {
+      const d = reqs.combat - cb;
+      if (d > 0) { total += d; maxSingle = Math.max(maxSingle, d); missing.push({ kind: 'combat', name: 'Combat', need: reqs.combat, cur: cb }); }
+    }
+    if (reqs.skill) {
+      for (const [sid, need] of Object.entries(reqs.skill)) {
+        const cur = stats.skills[sid]?.level || 1;
+        const d = need - cur;
+        if (d > 0) {
+          total += d; maxSingle = Math.max(maxSingle, d);
+          const m = SKILL_META.find(mm => mm.id === sid);
+          missing.push({ kind: 'skill', name: m?.name || sid, need, cur, icon: m?.icon });
+        }
+      }
+    }
+    if (reqs.quest) {
+      const qid = QUESTS.find(q => q.name === reqs.quest)?.id || reqs.quest.toLowerCase().replace(/\W+/g, '_');
+      if (!completedIds.has(qid)) {
+        total += 999; missing.push({ kind: 'quest', name: reqs.quest });
+      }
+    }
+    if (reqs.quests) {
+      for (const qid of reqs.quests) {
+        if (!completedIds.has(qid)) {
+          total += 999;
+          const q = QUESTS.find(qq => qq.id === qid);
+          missing.push({ kind: 'quest', name: q?.name || qid });
+        }
+      }
+    }
+    return { total, maxSingle, missing };
+  }
+
+  // "Coming Up" — ALL locked items sorted by how close she is. Each shows "Do at X" label.
+  function nearMasterTasks(stats, completedIds) {
     return MASTER_TASKS
       .filter(t => !completedIds.has(t.id))
       .filter(t => !masterTaskQualifies(t, stats, completedIds))
-      .filter(t => {
-        if (t.reqs?.combat && t.reqs.combat - cb <= 10 && t.reqs.combat - cb > 0) return true;
-        if (t.reqs?.skill) {
-          for (const [sid, need] of Object.entries(t.reqs.skill)) {
-            const cur = stats.skills[sid]?.level || 1;
-            if (need - cur > 0 && need - cur <= 10) return true;
-          }
-        }
-        return false;
-      })
-      .sort((a, b) => (a.priority || 9) - (b.priority || 9));
+      .map(t => ({ t, gap: readinessGap(t.reqs, stats, completedIds) }))
+      .filter(x => x.gap.total > 0)
+      .sort((a, b) => a.gap.total - b.gap.total || (a.t.priority || 9) - (b.t.priority || 9))
+      .map(x => Object.assign({}, x.t, { _gap: x.gap }));
   }
 
   function nearQuests(stats, completedIds) {
-    const cb = currentCombatLevel(stats);
     return QUESTS
       .filter(q => !completedIds.has(q.id))
       .filter(q => !questQualifies(q, stats, completedIds))
-      .filter(q => {
-        // missing only practical combat by ≤10
-        if (q.practicalCombat && q.practicalCombat - cb > 0 && q.practicalCombat - cb <= 10) {
-          // also check that skill/quest prereqs are met
-          if (q.reqs?.skill) {
-            for (const [sid, need] of Object.entries(q.reqs.skill)) {
-              if ((stats.skills[sid]?.level || 1) < need) return false;
-            }
-          }
-          if (q.reqs?.quests) {
-            for (const qid of q.reqs.quests) if (!completedIds.has(qid)) return false;
-          }
-          return true;
-        }
-        return false;
+      .map(q => {
+        const reqs = Object.assign({}, q.reqs, q.practicalCombat ? { combat: q.practicalCombat } : {});
+        return { q, gap: readinessGap(reqs, stats, completedIds) };
       })
-      .sort((a, b) => (a.priority || 9) - (b.priority || 9));
+      .filter(x => x.gap.total > 0)
+      .sort((a, b) => a.gap.total - b.gap.total || (a.q.priority || 9) - (b.q.priority || 9))
+      .map(x => Object.assign({}, x.q, { _gap: x.gap }));
   }
 
   function readyQuests(stats, completedIds) {
@@ -363,43 +384,51 @@ const Recommender = (() => {
       .slice(0, 8);
   }
 
-  // "Coming up next" — within ~10 levels of being ready
-  function comingUpRecommendations(stats, completedQuestIds) {
-    const cb = currentCombatLevel(stats);
+  function formatMissing(missing) {
+    return missing.map(m => {
+      if (m.kind === 'combat') return `Combat ${m.need} (you: ${m.cur})`;
+      if (m.kind === 'skill')  return `${m.icon || ''} ${m.name} ${m.need} (you: ${m.cur})`;
+      if (m.kind === 'quest')  return `Quest: ${m.name}`;
+      return '';
+    }).filter(Boolean).join(' · ');
+  }
+
+  // "Coming up next" — ALL locked items, sorted by closest. Caller controls how many.
+  function comingUpRecommendations(stats, completedQuestIds, limit = 30) {
     const upcoming = [];
 
-    // Near-ready quests
-    for (const q of nearQuests(stats, completedQuestIds).slice(0, 4)) {
+    for (const q of nearQuests(stats, completedQuestIds)) {
       upcoming.push({
+        id: `near_${q.id}`, type: 'quest_locked',
         icon: '📜', cat: 'quest', tag: 'locked',
         title: q.name,
-        detail: `Need combat ${q.practicalCombat} (you're ${cb}). ${q.why}`,
+        unlockLabel: formatMissing(q._gap.missing),
+        detail: q.why,
         wiki: WIKI(q.name),
+        _gap: q._gap.total,
       });
     }
 
-    // Near-ready master tasks
-    for (const t of nearMasterTasks(stats, completedQuestIds).slice(0, 6)) {
-      const missing = [];
-      if (t.reqs?.combat && cb < t.reqs.combat) missing.push(`Combat ${t.reqs.combat} (you: ${cb})`);
-      if (t.reqs?.skill) {
-        for (const [sid, need] of Object.entries(t.reqs.skill)) {
-          const cur = stats.skills[sid]?.level || 1;
-          if (cur < need) {
-            const m = SKILL_META.find(mm => mm.id === sid);
-            missing.push(`${m?.name || sid} ${need} (you: ${cur})`);
-          }
-        }
-      }
+    for (const t of nearMasterTasks(stats, completedQuestIds)) {
       upcoming.push({
+        id: `near_${t.id}`, type: 'master_locked',
         icon: t.icon, cat: t.category, tag: 'locked',
         title: t.name,
-        detail: `<strong>Need:</strong> ${missing.join(', ')}.<br>${t.why}`,
+        unlockLabel: formatMissing(t._gap.missing),
+        detail: t.why,
         wiki: t.wiki ? WIKI(t.wiki) : null,
+        _gap: t._gap,
       });
     }
 
-    return upcoming.slice(0, 8);
+    // sort by gap (closest first), then priority
+    upcoming.sort((a, b) => {
+      const ga = typeof a._gap === 'number' ? a._gap : a._gap.total || 0;
+      const gb = typeof b._gap === 'number' ? b._gap : b._gap.total || 0;
+      return ga - gb;
+    });
+
+    return upcoming.slice(0, limit);
   }
 
   function readyDiaryTasks(_stats) {
