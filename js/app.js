@@ -31,6 +31,7 @@
   });
 
   document.getElementById('manual-btn').addEventListener('click', () => UI.showManualEntry());
+  document.getElementById('quests-btn').addEventListener('click', () => UI.showBulkQuestEditor());
   document.getElementById('panic-btn').addEventListener('click', () => UI.showPanic());
 
   async function startForUser(username) {
