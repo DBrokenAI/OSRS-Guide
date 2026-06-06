@@ -72,7 +72,7 @@ body {
   z-index: 1;
 }
 
-body > *:not(#sakura-canvas) { position: relative; z-index: 2; }
+body > *:not(#sakura-canvas):not(.modal-backdrop) { position: relative; z-index: 2; }
 
 /* ===== Top bar ===== */
 .topbar {
