@@ -581,46 +581,49 @@ const MASTER_TASKS = [
   //   Pollnivneach (70+):    ~26 marks/hr
   //   Rellekka (80+):        ~28 marks/hr
   //   Ardougne (90+):        ~30 marks/hr
+  // 🌸 Graceful — 6 separate tasks, all available, spread across priorities so they
+  // interleave with quests/other tasks instead of clustering. She does them whenever
+  // it feels natural — between quests, slayer breaks, etc.
   { id: 'graceful_gloves', category: 'gear', icon: '🧤', priority: 1,
-    name: 'Graceful gloves (30 marks) — START HERE',
+    name: 'Graceful gloves (30 marks)',
     reqs: {},
-    why: 'Cheapest piece. Quick first win. Lighter than any other gloves.',
-    how: '30 marks needed. Use the BEST course for your Agility:<br>• 10-29 Agility → Draynor (~2.3 hrs)<br>• 30-39 → Varrock (~1.8 hrs)<br>• 40+ → Canifis (~1.5 hrs)<br>• 60+ → Seers\' (~1.25 hrs).<br>Then buy from Grace at Rogues\' Den (Burthorpe basement).',
+    why: 'Cheapest piece. Quick first win.',
+    how: '30 marks. Best course by Agility level:<br>• 10-29 → Draynor (~2.3 hrs)<br>• 30-39 → Varrock (~1.8 hrs)<br>• 40+ → Canifis (~1.5 hrs)<br>• 60+ → Seers\' (~1.25 hrs).<br>Buy from Grace at Rogues\' Den (Burthorpe basement).',
     wiki: 'Graceful gloves' },
 
-  { id: 'graceful_hood', category: 'gear', icon: '👒', priority: 1,
+  { id: 'graceful_hood', category: 'gear', icon: '👒', priority: 2,
     name: 'Graceful hood (35 marks)',
-    reqs: { task: 'graceful_gloves' },
-    why: 'Second cheapest. Replaces full helms for travel.',
-    how: '35 marks. Same best-course rule:<br>• 10-29 → Draynor (~2.7 hrs)<br>• 30-39 → Varrock (~2 hrs)<br>• 40+ → Canifis (~1.75 hrs)<br>• 60+ → Seers\' (~1.5 hrs).',
+    reqs: {},
+    why: 'Replaces full helms for travel.',
+    how: '35 marks. Best course by Agility level:<br>• 10-29 → Draynor (~2.7 hrs)<br>• 30-39 → Varrock (~2 hrs)<br>• 40+ → Canifis (~1.75 hrs)<br>• 60+ → Seers\' (~1.5 hrs).',
     wiki: 'Graceful hood' },
 
-  { id: 'graceful_boots', category: 'gear', icon: '👢', priority: 1,
+  { id: 'graceful_boots', category: 'gear', icon: '👢', priority: 3,
     name: 'Graceful boots (40 marks)',
-    reqs: { task: 'graceful_hood' },
-    why: 'Third piece — stacking weight savings start adding up.',
-    how: '40 marks. Switch up your course as you level:<br>• 30-39 → Varrock (~2.3 hrs)<br>• 40-59 → Canifis (~2 hrs)<br>• 60+ → Seers\' (~1.7 hrs)<br>• 70+ → Pollnivneach (~1.5 hrs).',
+    reqs: {},
+    why: 'Stacking weight savings start adding up.',
+    how: '40 marks:<br>• 30-39 → Varrock (~2.3 hrs)<br>• 40-59 → Canifis (~2 hrs)<br>• 60+ → Seers\' (~1.7 hrs)<br>• 70+ → Pollnivneach (~1.5 hrs).',
     wiki: 'Graceful boots' },
 
-  { id: 'graceful_cape', category: 'gear', icon: '🎀', priority: 1,
+  { id: 'graceful_cape', category: 'gear', icon: '🎀', priority: 3,
     name: 'Graceful cape (40 marks)',
-    reqs: { task: 'graceful_boots' },
-    why: 'Halfway there! Replaces team / regular cape until skill capes.',
-    how: '40 marks. By now you should be on the best course you have access to:<br>• 40-59 → Canifis (~2 hrs)<br>• 60-79 → Seers\' (~1.7 hrs)<br>• 80+ → Rellekka (~1.4 hrs).',
+    reqs: {},
+    why: 'Replaces team / regular cape until skill capes.',
+    how: '40 marks:<br>• 40-59 → Canifis (~2 hrs)<br>• 60-79 → Seers\' (~1.7 hrs)<br>• 80+ → Rellekka (~1.4 hrs).',
     wiki: 'Graceful cape' },
 
-  { id: 'graceful_top', category: 'gear', icon: '👚', priority: 1,
+  { id: 'graceful_top', category: 'gear', icon: '👚', priority: 4,
     name: 'Graceful top (55 marks)',
-    reqs: { task: 'graceful_cape' },
-    why: 'Biggest single weight save (-4kg). Almost done.',
+    reqs: {},
+    why: 'Biggest single weight save (-4kg).',
     how: '55 marks (the big one):<br>• 40-59 → Canifis (~2.75 hrs)<br>• 60-79 → Seers\' (~2.3 hrs)<br>• 80-89 → Rellekka (~2 hrs)<br>• 90+ → Ardougne (~1.8 hrs).',
     wiki: 'Graceful top' },
 
-  { id: 'graceful_legs', category: 'gear', icon: '👖', priority: 1,
-    name: 'Graceful legs (60 marks) — FULL SET BONUS UNLOCKS',
-    reqs: { task: 'graceful_top' },
-    why: '🌸 Last piece! Full set = +30% run energy restore rate. The game-changer.',
-    how: '60 marks (final stretch):<br>• 60-79 → Seers\' (~2.5 hrs)<br>• 80-89 → Rellekka (~2.1 hrs)<br>• 90+ → Ardougne (~2 hrs).<br>Wear the full set to activate the bonus!',
+  { id: 'graceful_legs', category: 'gear', icon: '👖', priority: 5,
+    name: 'Graceful legs (60 marks) — last piece, FULL SET BONUS',
+    reqs: {},
+    why: '🌸 Wear the full set = +30% run energy restore rate. Game-changer.',
+    how: '60 marks (final stretch):<br>• 60-79 → Seers\' (~2.5 hrs)<br>• 80-89 → Rellekka (~2.1 hrs)<br>• 90+ → Ardougne (~2 hrs).',
     wiki: 'Graceful legs' },
 
   // ⛏️ Prospector — split into 4 pieces (370 nuggets total). MLM passive drop.

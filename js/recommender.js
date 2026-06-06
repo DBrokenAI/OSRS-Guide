@@ -370,22 +370,27 @@ const Recommender = (() => {
       });
     }
 
-    // ===== 5. CURRENT BEST METHOD for her 1-2 weakest non-combat skills =====
-    // Show at any level until 99 (drops off only when she's maxed)
-    const weakSkills = SKILL_META
+    // ===== 5. CURRENT BEST METHOD for her weakest non-combat skills =====
+    // Show ALL non-combat skills under level 20 — beginners need every method spelled out.
+    // For higher levels, just show the 3 weakest.
+    const allWeak = SKILL_META
       .filter(m => !m.combat)
       .map(m => ({ id: m.id, name: m.name, icon: m.icon, lvl: stats.skills[m.id]?.level || 1 }))
       .filter(s => s.lvl < 99)
-      .sort((a, b) => a.lvl - b.lvl)
-      .slice(0, 2);
+      .sort((a, b) => a.lvl - b.lvl);
+    const veryLow = allWeak.filter(s => s.lvl < 20);
+    const weakSkills = veryLow.length ? veryLow : allWeak.slice(0, 3);
+
     for (const w of weakSkills) {
       const tier = currentTier(w.id, w.lvl);
       if (!tier) continue;
+      // Spread skill training cards across priorities so they don't all cluster
+      const priorityByLevel = w.lvl < 5 ? 2 : w.lvl < 15 ? 3 : 4;
       recs.push({
         id: `train_${w.id}`, type: 'skill',
-        priority: 4, icon: w.icon, tag: 'blue', cat: 'skill',
-        title: `${w.name} ${w.lvl} → ${tier.name} (${tier.xpHr} xp/hr)`,
-        detail: `${tier.where}. ${tier.why}`,
+        priority: priorityByLevel, icon: w.icon, tag: 'blue', cat: 'skill',
+        title: `Train ${w.name} ${w.lvl} → ${tier.to} at ${tier.name}`,
+        detail: `📍 <strong>${tier.where || ''}</strong> · ${tier.xpHr || ''} xp/hr<br>${tier.why || ''}<br><em>Switch at level ${tier.to} to the next method.</em>`,
       });
     }
 
