@@ -393,6 +393,33 @@ const Recommender = (() => {
     }).filter(Boolean).join(' · ');
   }
 
+  // Quests that give XP in a specific skill (uncompleted only)
+  function questsGivingSkill(skillId, completedIds) {
+    return QUESTS
+      .filter(q => !completedIds.has(q.id))
+      .filter(q => q.xpRewards && q.xpRewards[skillId])
+      .sort((a, b) => (b.xpRewards[skillId] || 0) - (a.xpRewards[skillId] || 0));
+  }
+
+  // For each missing skill in a rec, surface the top quest XP shortcuts
+  function boostQuestsForGap(missing, completedIds) {
+    const out = [];
+    for (const m of missing) {
+      if (m.kind !== 'skill') continue;
+      const skillId = SKILL_META.find(mm => mm.name === m.name)?.id || m.name.toLowerCase();
+      const quests = questsGivingSkill(skillId, completedIds).slice(0, 3);
+      for (const q of quests) {
+        out.push({
+          name: q.name,
+          xp: q.xpRewards[skillId],
+          skill: m.name,
+          skillIcon: m.icon,
+        });
+      }
+    }
+    return out;
+  }
+
   // "Coming up next" — ALL locked items, sorted by closest. Caller controls how many.
   function comingUpRecommendations(stats, completedQuestIds, limit = 30) {
     const upcoming = [];
@@ -403,6 +430,7 @@ const Recommender = (() => {
         icon: '📜', cat: 'quest', tag: 'locked',
         title: q.name,
         unlockLabel: formatMissing(q._gap.missing),
+        boostQuests: boostQuestsForGap(q._gap.missing, completedQuestIds),
         detail: q.why,
         wiki: WIKI(q.name),
         _gap: q._gap.total,
@@ -415,6 +443,7 @@ const Recommender = (() => {
         icon: t.icon, cat: t.category, tag: 'locked',
         title: t.name,
         unlockLabel: formatMissing(t._gap.missing),
+        boostQuests: boostQuestsForGap(t._gap.missing, completedQuestIds),
         detail: t.why,
         wiki: t.wiki ? WIKI(t.wiki) : null,
         _gap: t._gap,

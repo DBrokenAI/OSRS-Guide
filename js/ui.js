@@ -14,7 +14,8 @@ const UI = (() => {
   let recentDiffs  = {}; // skillId → ts of last gain (for sparkle)
 
   function setStats(stats, diff) {
-    currentStats = stats;
+    // Overlay quest XP credits (from "Mark Done") onto live stats
+    currentStats = PendingXp.apply(stats);
     if (diff) {
       const now = Date.now();
       for (const sid of Object.keys(diff)) recentDiffs[sid] = now;
@@ -148,6 +149,14 @@ const UI = (() => {
               📌 Do this at: ${r.unlockLabel}
             </div>
           ` : ''}
+          ${r.boostQuests && r.boostQuests.length ? `
+            <div style="margin:8px 0 0;padding:8px 12px;background:linear-gradient(90deg,#fff8d0,transparent);border-left:3px solid gold;border-radius:8px;font-size:12px;">
+              <strong style="color:#b08400;">💡 Shortcut: do these quests for free XP →</strong>
+              <ul style="margin:4px 0 0 18px;padding:0;">
+                ${r.boostQuests.map(b => `<li><strong>${esc(b.name)}</strong> = +${b.xp.toLocaleString()} ${b.skillIcon || ''} ${esc(b.skill)} XP</li>`).join('')}
+              </ul>
+            </div>
+          ` : ''}
           <p style="margin:6px 0 0;color:var(--text-soft);">${r.detail || ''}</p>
           <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;">
             ${r.wiki ? `<a class="wiki-link" target="_blank" href="${r.wiki}">Wiki →</a>` : ''}
@@ -202,16 +211,35 @@ const UI = (() => {
     set.add(key);
     saveCompletedRecs(set);
 
+    let xpCreditMsg = '';
+
     // If it's a quest, also write to the bulk quest store so all views agree
     if (type === 'quest' && id) {
       const qSet = loadCompletedQuests();
       qSet.add(id);
       saveCompletedQuests(qSet);
+
+      // Credit the quest's XP rewards locally
+      const quest = QUESTS.find(q => q.id === id);
+      if (quest?.xpRewards) {
+        PendingXp.add(quest.xpRewards);
+        const lines = Object.entries(quest.xpRewards).map(([sid, xp]) => {
+          const m = SKILL_META.find(mm => mm.id === sid);
+          return `${m?.icon || ''} +${xp.toLocaleString()} ${m?.name || sid}`;
+        });
+        xpCreditMsg = '<br>' + lines.join('<br>');
+        Journal.add('xp', `💖 Quest XP credited: ${lines.join(', ')}`, true);
+
+        // Re-apply pending so stats refresh immediately
+        if (Hiscores.lastStats) {
+          currentStats = PendingXp.apply(Hiscores.lastStats);
+        }
+      }
     }
 
     Journal.add('done', `✅ Marked done: ${title}`, false);
     renderAll();
-    toast(`✨ Marked done!`);
+    toast(`✨ Marked done!${xpCreditMsg}`);
   }
 
   function resetCompletedRecs() {
@@ -277,12 +305,13 @@ const UI = (() => {
           ${SKILL_META.map(m => {
             const sk = s[m.id] || { level: 1, xp: 0 };
             const recent = recentDiffs[m.id] && (now - recentDiffs[m.id] < 5*60*1000);
+            const pending = sk._pending;
             return `
-              <div class="stat ${recent ? 'recently-gained' : ''}">
+              <div class="stat ${recent ? 'recently-gained' : ''}" ${pending ? 'title="Includes quest XP not yet on hiscores"' : ''}>
                 <span class="stat-icon">${m.icon}</span>
                 <div>
                   <div class="stat-name">${esc(m.name)}</div>
-                  <div class="stat-xp">${NUM(sk.xp)} xp</div>
+                  <div class="stat-xp">${NUM(sk.xp)} xp${pending ? ` <span style="color:var(--pink-500);font-weight:700;">+${NUM(pending)} 💖</span>` : ''}</div>
                 </div>
                 <div class="stat-lvl">${sk.level}</div>
               </div>

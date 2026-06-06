@@ -49,6 +49,12 @@ function xpToNext(currentXp, currentLvl) {
   if (currentLvl >= 99) return 0;
   return Math.max(0, xpForLevel(currentLvl + 1) - currentXp);
 }
+function levelFromXp(xp) {
+  for (let lvl = 99; lvl >= 1; lvl--) {
+    if (xp >= xpForLevel(lvl)) return lvl;
+  }
+  return 1;
+}
 
 // ---------- Combat level formula ----------
 function combatLevel(s) {
@@ -67,6 +73,7 @@ const QUESTS = [
   // ----- F2P essentials -----
   { id: 'cooks_assistant', name: "Cook's Assistant", members: false, length: 'Very short',
     reqs: {}, practicalCombat: 1,
+    xpRewards: { cooking: 300 },
     rewards: ['300 Cooking XP', '500 coins', 'Access to Lumbridge castle range'],
     why: 'Free Cooking XP. Talk to the Cook in Lumbridge Castle. Bring milk, egg, flour from the area.', priority: 1 },
 
@@ -77,16 +84,19 @@ const QUESTS = [
 
   { id: 'misthalin_mystery', name: 'Misthalin Mystery', members: false, length: 'Short',
     reqs: {}, practicalCombat: 1,
+    xpRewards: { crafting: 600 },
     rewards: ['600 Crafting XP', 'Mystery box', 'Emerald ring'],
     why: 'Free Crafting XP + small loot. F2P. No combat. Puzzle-based.', priority: 2 },
 
   { id: 'gertrudes_cat', name: "Gertrude's Cat", members: true, length: 'Short',
     reqs: {}, practicalCombat: 1,
+    xpRewards: { cooking: 1525 },
     rewards: ['1,525 Cooking XP', 'A cat (pet that catches rats)'],
     why: 'Cooking XP + a cute pet cat that catches rats. Members. No combat.', priority: 2 },
 
   { id: 'knights_sword', name: "The Knight's Sword", members: false, length: 'Medium',
     reqs: { skill: { mining: 10 } }, practicalCombat: 20,
+    xpRewards: { smithing: 12725 },
     rewards: ['🔥 12,725 Smithing XP (instant 1→29!)'],
     why: 'F2P. Run past Ice Warriors. Single best Smithing XP reward in the game.', priority: 1 },
 
@@ -97,6 +107,7 @@ const QUESTS = [
 
   { id: 'sleeping_giants', name: 'Sleeping Giants (miniquest)', members: true, length: 'Short',
     reqs: {}, practicalCombat: 1,
+    xpRewards: { smithing: 30000 },
     rewards: ['Unlocks Giants\' Foundry (best Smithing XP)', '30K Smithing XP if done with bars'],
     why: 'Unlocks one of the best Smithing methods. No combat.', priority: 2 },
 
@@ -106,7 +117,8 @@ const QUESTS = [
     why: 'Unlocks new mid-game area. Easy, no combat.', priority: 3 },
 
   { id: 'sheep_shearer', name: 'Sheep Shearer', members: false, length: 'Short',
-    reqs: {}, rewards: ['150 Crafting XP', '60 coins'],
+    reqs: {}, xpRewards: { crafting: 150 },
+    rewards: ['150 Crafting XP', '60 coins'],
     why: 'Easy XP. Pair with Cook\'s Assistant for a 5-min knock-out.', priority: 1 },
 
   { id: 'romeo_juliet', name: 'Romeo & Juliet', members: false, length: 'Short',
@@ -114,19 +126,23 @@ const QUESTS = [
     why: 'Required for prerequisites later. Knock it out early.', priority: 2 },
 
   { id: 'restless_ghost', name: 'The Restless Ghost', members: false, length: 'Short',
-    reqs: {}, rewards: ['1,125 Prayer XP (level 9)', 'Ghostspeak amulet'],
+    reqs: {}, xpRewards: { prayer: 1125 },
+    rewards: ['1,125 Prayer XP (level 9)', 'Ghostspeak amulet'],
     why: 'Free prayer to level 9 — unlocks Protect from… prayers chain later.', priority: 1 },
 
   { id: 'witchs_potion', name: "Witch's Potion", members: false, length: 'Very short',
-    reqs: {}, rewards: ['325 Magic XP'],
+    reqs: {}, xpRewards: { magic: 325 },
+    rewards: ['325 Magic XP'],
     why: 'Half of level 5 Magic in 2 minutes.', priority: 2 },
 
   { id: 'imp_catcher', name: 'Imp Catcher', members: false, length: 'Short',
-    reqs: {}, rewards: ['875 Magic XP (level 8)', 'Amulet of Accuracy'],
+    reqs: {}, xpRewards: { magic: 875 },
+    rewards: ['875 Magic XP (level 8)', 'Amulet of Accuracy'],
     why: 'Pushes Magic toward level 13 for Curse spells.', priority: 2 },
 
   { id: 'dorics_quest', name: "Doric's Quest", members: false, length: 'Very short',
-    reqs: {}, rewards: ['1,300 Mining XP (level 10)', '180 coins'],
+    reqs: {}, xpRewards: { mining: 1300 },
+    rewards: ['1,300 Mining XP (level 10)', '180 coins'],
     why: 'Free Mining start. Path it before mining anything.', priority: 2 },
 
   { id: 'goblin_diplomacy', name: 'Goblin Diplomacy', members: false, length: 'Short',
@@ -135,6 +151,7 @@ const QUESTS = [
 
   { id: 'dragon_slayer_1', name: 'Dragon Slayer I', members: false, length: 'Medium',
     reqs: { quests: ['restless_ghost'] }, practicalCombat: 45,
+    xpRewards: { strength: 18650, defence: 18650 },
     rewards: ['Ability to wear Rune Platebody / Green dhide body', '18,650 Strength + Defence XP'],
     why: '🔥 MASSIVE unlock. Rune body is the best body armor for ages. Fight Elvarg (lvl 83) — needs anti-dragon shield + prayer. Wiki recommends combat 45.', priority: 1 },
 
