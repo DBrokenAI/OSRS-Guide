@@ -171,6 +171,14 @@ const UI = (() => {
         ${upcoming.map(r => renderCard(r, 'soon', false)).join('')}
       ` : ''}
 
+      <h3>🌟 Lifetime Goals (always working toward these)</h3>
+      <p style="color:var(--text-soft);font-size:13px;margin-top:-4px;">
+        The long-term targets — quest cape, max cape, fire cape, comp cape. Show your progress.
+      </p>
+      ${Recommender.lifetimeGoals(currentStats, completed)
+        .filter(r => !completedRecs.has(recKey(r)))
+        .map(r => renderCard(r, null, true)).join('')}
+
       ${completedRecs.size ? `
         <h3 style="margin-top:32px;">🎀 Completed (${completedRecs.size}) <button class="btn btn-soft" style="float:right;font-size:11px;padding:4px 10px;" onclick="UI.resetCompletedRecs()">Reset</button></h3>
         <p style="color:var(--text-soft);font-size:12px;margin-top:-4px;">Recommendations you've marked done. They'll stay hidden from the lists above. 💕</p>

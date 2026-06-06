@@ -318,10 +318,11 @@ const Recommender = (() => {
     }
 
     // ===== 5. CURRENT BEST METHOD for her 1-2 weakest non-combat skills =====
+    // Show at any level until 99 (drops off only when she's maxed)
     const weakSkills = SKILL_META
       .filter(m => !m.combat)
       .map(m => ({ id: m.id, name: m.name, icon: m.icon, lvl: stats.skills[m.id]?.level || 1 }))
-      .filter(s => s.lvl < 50)
+      .filter(s => s.lvl < 99)
       .sort((a, b) => a.lvl - b.lvl)
       .slice(0, 2);
     for (const w of weakSkills) {
@@ -333,6 +334,25 @@ const Recommender = (() => {
         title: `${w.name} ${w.lvl} → ${tier.name} (${tier.xpHr} xp/hr)`,
         detail: `${tier.where}. ${tier.why}`,
       });
+    }
+
+    // ===== 6. AT 99 IN A SKILL: suggest the next slow skill OR endgame goal =====
+    const has99s = SKILL_META.filter(m => (stats.skills[m.id]?.level || 1) >= 99).length;
+    if (has99s >= 3) {
+      // Suggest the lowest combat-level skill if not yet 99
+      const lowestCombat = SKILL_META.filter(m => m.combat)
+        .map(m => ({ id: m.id, name: m.name, icon: m.icon, lvl: stats.skills[m.id]?.level || 1 }))
+        .filter(s => s.lvl < 99 && s.id !== 'hitpoints')
+        .sort((a, b) => a.lvl - b.lvl)[0];
+      if (lowestCombat) {
+        const tier = currentTier(lowestCombat.id, lowestCombat.lvl);
+        if (tier) recs.push({
+          id: `endgame_${lowestCombat.id}`, type: 'skill',
+          priority: 3, icon: lowestCombat.icon, tag: 'gold', cat: 'skill',
+          title: `Push ${lowestCombat.name} (${lowestCombat.lvl}) to 99 — Max Cape progress`,
+          detail: `${tier.name} @ ${tier.where} (${tier.xpHr} xp/hr). ${tier.why}`,
+        });
+      }
     }
 
     // Dedupe by title, sort by priority, cap at 8
@@ -387,7 +407,77 @@ const Recommender = (() => {
     return DIARIES_EASY;
   }
 
-  return { topRecommendations, comingUpRecommendations,
+  // Lifetime goals — always shown in Next Up as long-term targets
+  function lifetimeGoals(stats, completedQuestIds) {
+    const goals = [];
+    const totalLevel = stats.totalLevel || 0;
+    const has99s = SKILL_META.filter(m => (stats.skills[m.id]?.level || 1) >= 99).length;
+    const cb = currentCombatLevel(stats);
+
+    // Quest Cape — show progress
+    goals.push({
+      id: 'lifetime_quest_cape', type: 'master',
+      icon: '🦸', cat: 'milestone',
+      title: 'Quest Cape — complete every quest',
+      detail: `Best non-trophy cape. Use Quest Helper plugin to grind through. You\'re working toward this every time you knock off a quest. Currently ${completedQuestIds.size} marked done.`,
+      wiki: WIKI('Quest point cape'),
+    });
+
+    // Max Cape — show 99s progress
+    goals.push({
+      id: 'lifetime_max_cape', type: 'master',
+      icon: '👑', cat: 'milestone',
+      title: `Max Cape — ${has99s}/23 skills at 99`,
+      detail: `The ultimate stats goal. Multi-year for most players. Focus on the slowest skills: Slayer, Agility, Runecrafting, Construction. Total level ${totalLevel}/2277.`,
+      wiki: WIKI('Max cape'),
+    });
+
+    // Fire Cape / Inferno (combat-gated)
+    if (cb >= 70) {
+      goals.push({
+        id: 'lifetime_fire_cape', type: 'master',
+        icon: '🔥', cat: 'gear',
+        title: 'Fire Cape — TzHaar Fight Cave',
+        detail: '+4 strength bonus cape. Solo 63 waves. Practice on the Inferno HD plugin. Required for Infernal Cape later.',
+        wiki: WIKI('Fire cape'),
+      });
+    }
+
+    // Inferno (high combat)
+    if (cb >= 100) {
+      goals.push({
+        id: 'lifetime_inferno', type: 'master',
+        icon: '🌋', cat: 'gear',
+        title: 'Infernal Cape — TzKal-Zuk',
+        detail: '+4 str, biggest trophy cape in the game. ~10 hr trial, need Tbow ideally. Requires Fire Cape first.',
+        wiki: WIKI('Infernal cape'),
+      });
+    }
+
+    // Achievement Diary Cape
+    goals.push({
+      id: 'lifetime_diary_cape', type: 'master',
+      icon: '📔', cat: 'milestone',
+      title: 'Achievement Diary Cape — complete every Elite diary',
+      detail: 'Best skill cape stats. Combines every region\'s diary reward. Visit the Diary tab for tasks.',
+      wiki: WIKI('Achievement Diary cape'),
+    });
+
+    // Comp (endgame trophy)
+    if (has99s >= 5 || cb >= 100) {
+      goals.push({
+        id: 'lifetime_comp_cape', type: 'master',
+        icon: '🏆', cat: 'milestone',
+        title: 'Completionist — Combat Achievements + all pets + music',
+        detail: 'The true OSRS endgame. Combat Achievements (Easy → Grandmaster), all pets, music cape, all collection log entries.',
+        wiki: WIKI('Combat Achievements'),
+      });
+    }
+
+    return goals;
+  }
+
+  return { topRecommendations, comingUpRecommendations, lifetimeGoals,
            readyQuests, lockedQuests, readyBosses,
            readyMasterTasks, nearMasterTasks, nearQuests,
            currentTier, nextTier, gearForLevel, readyDiaryTasks,
