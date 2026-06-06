@@ -569,12 +569,49 @@ const MASTER_TASKS = [
     wiki: 'Rune pouch' },
 
   // ----- GRACEFUL + Skilling Outfits -----
-  { id: 'graceful', category: 'gear', icon: '🌸', priority: 1,
-    name: 'Full Graceful outfit (260 Marks of Grace)',
+  // 🌸 Graceful outfit — split into individual pieces (260 total marks = burnout if grouped).
+  // Order: cheapest first → quick wins → builds momentum.
+  { id: 'graceful_gloves', category: 'gear', icon: '🧤', priority: 1,
+    name: 'Graceful gloves (30 marks) — START HERE',
     reqs: {},
-    why: '-25% weight, +30% run energy regen. The single most useful outfit in the game — used for EVERYTHING.',
-    how: 'Run rooftop agility courses (Draynor at 30, Varrock at 50, Canifis at 60). Buy pieces from Grace at the Rogues\' Den (Burthorpe basement). Hood 35, Top 55, Legs 60, Gloves 30, Boots 40, Cape 40 marks.',
-    wiki: 'Graceful outfit' },
+    why: 'Cheapest piece. Quick first win. Lighter than any other gloves.',
+    how: 'Earn 30 Marks of Grace on rooftop courses (Draynor at 10+, Varrock at 30+). Buy from Grace at Rogues\' Den (Burthorpe basement).',
+    wiki: 'Graceful gloves' },
+
+  { id: 'graceful_hood', category: 'gear', icon: '👒', priority: 1,
+    name: 'Graceful hood (35 marks)',
+    reqs: { task: 'graceful_gloves' },
+    why: 'Second cheapest. Replaces full helms for travel.',
+    how: 'Buy from Grace at Rogues\' Den.',
+    wiki: 'Graceful hood' },
+
+  { id: 'graceful_boots', category: 'gear', icon: '👢', priority: 1,
+    name: 'Graceful boots (40 marks)',
+    reqs: { task: 'graceful_hood' },
+    why: 'Third piece — stacking weight savings start adding up.',
+    how: 'Buy from Grace at Rogues\' Den.',
+    wiki: 'Graceful boots' },
+
+  { id: 'graceful_cape', category: 'gear', icon: '🎀', priority: 1,
+    name: 'Graceful cape (40 marks)',
+    reqs: { task: 'graceful_boots' },
+    why: 'Halfway there! Replaces team / regular cape until skill capes.',
+    how: 'Buy from Grace at Rogues\' Den.',
+    wiki: 'Graceful cape' },
+
+  { id: 'graceful_top', category: 'gear', icon: '👚', priority: 1,
+    name: 'Graceful top (55 marks)',
+    reqs: { task: 'graceful_cape' },
+    why: 'Biggest single weight save (-4kg). Almost done.',
+    how: 'Buy from Grace at Rogues\' Den.',
+    wiki: 'Graceful top' },
+
+  { id: 'graceful_legs', category: 'gear', icon: '👖', priority: 1,
+    name: 'Graceful legs (60 marks) — FULL SET BONUS UNLOCKS',
+    reqs: { task: 'graceful_top' },
+    why: '🌸 Last piece! Full set = +30% run energy restore rate. The game-changer.',
+    how: 'Buy from Grace at Rogues\' Den. Wear full set to activate the bonus.',
+    wiki: 'Graceful legs' },
 
   { id: 'prospector', category: 'gear', icon: '⛏️', priority: 2,
     name: 'Prospector outfit (+2.5% Mining XP)',
