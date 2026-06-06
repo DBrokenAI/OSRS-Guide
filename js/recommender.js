@@ -186,6 +186,7 @@ const Recommender = (() => {
 
     if (!completedQuestIds.has('stronghold_of_security')) {
       recs.push({
+        id: 'stronghold_of_security', type: 'master',
         priority: 1, icon: '🛡️', tag: 'green', cat: 'starter',
         title: `Stronghold of Security — free 10,000 gp + boots`,
         detail: '30 min, no combat reqs. Read the dialogue (it teaches account security), get 10K gp and Fancy or Fighter boots.',
@@ -195,6 +196,7 @@ const Recommender = (() => {
 
     if (pray < 9 && !completedQuestIds.has('restless_ghost')) {
       recs.push({
+        id: 'restless_ghost', type: 'quest',
         priority: 1, icon: '🙏', tag: 'gold', cat: 'quest',
         title: `The Restless Ghost (F2P) — Prayer 1 → 9, no combat needed`,
         detail: 'Free 1,125 Prayer XP. Path to Prayer 43 (Protect prayers — biggest combat unlock).',
@@ -204,6 +206,7 @@ const Recommender = (() => {
 
     if (mag < 5 && !completedQuestIds.has('witchs_potion')) {
       recs.push({
+        id: 'witchs_potion', type: 'quest',
         priority: 1, icon: '🔮', tag: 'blue', cat: 'quest',
         title: `Witch's Potion — Magic 1 → 5, no combat needed (10 min)`,
         detail: 'Tiny F2P quest. 325 Magic XP. Tied with Cook\'s Assistant as the fastest XP per minute.',
@@ -213,6 +216,7 @@ const Recommender = (() => {
 
     if (!completedQuestIds.has('cooks_assistant')) {
       recs.push({
+        id: 'cooks_assistant', type: 'quest',
         priority: 2, icon: '🍳', tag: 'green', cat: 'quest',
         title: `Cook's Assistant — 300 Cooking XP in 5 min`,
         detail: 'Easy F2P. Talk to the Cook in Lumbridge Castle kitchen. Bring milk, egg, flour from the cattle field nearby.',
@@ -222,6 +226,7 @@ const Recommender = (() => {
 
     if (!completedQuestIds.has('sheep_shearer')) {
       recs.push({
+        id: 'sheep_shearer', type: 'quest',
         priority: 2, icon: '✂️', tag: 'green', cat: 'quest',
         title: `Sheep Shearer — 150 Crafting XP in 5 min`,
         detail: 'F2P. Get shears from Fred the Farmer, shear 20 sheep, return the wool.',
@@ -231,6 +236,7 @@ const Recommender = (() => {
 
     if (!completedQuestIds.has('imp_catcher') && mag < 13) {
       recs.push({
+        id: 'imp_catcher', type: 'quest',
         priority: 2, icon: '🔮', tag: 'blue', cat: 'quest',
         title: `Imp Catcher — 875 Magic XP (gets you Magic 8+)`,
         detail: 'F2P. Easy: buy 4 beads from GE, give to Wizard Mizgog. Path toward Magic 13 (Curse spells).',
@@ -240,6 +246,7 @@ const Recommender = (() => {
 
     if (!completedQuestIds.has('dorics_quest')) {
       recs.push({
+        id: 'dorics_quest', type: 'quest',
         priority: 2, icon: '⛏️', tag: 'green', cat: 'quest',
         title: `Doric's Quest — Mining 1 → 10`,
         detail: 'F2P. Bring 6 clay, 4 copper, 2 iron ore to Doric (north of Falador). Quick easy Mining start.',
@@ -249,6 +256,7 @@ const Recommender = (() => {
 
     if (!completedQuestIds.has('druidic_ritual')) {
       recs.push({
+        id: 'druidic_ritual', type: 'quest',
         priority: 1, icon: '🌿', tag: 'gold', cat: 'quest',
         title: `Druidic Ritual — UNLOCKS Herblore (members)`,
         detail: 'Members only. No combat. Short. Without this you literally cannot train Herblore.',
@@ -259,19 +267,20 @@ const Recommender = (() => {
     // ===== 2. STATS BEHIND OTHER STATS (catch-up suggestions) =====
 
     // HP behind melee
-    if (hp < Math.max(att, str) - 5 && !completedQuestIds.has('witchs_house') && cb >= 30) {
+    if (hp < Math.max(att, str) - 5 && !completedQuestIds.has('witchs_house') && cb >= 35) {
       recs.push({
+        id: 'witchs_house', type: 'quest',
         priority: 1, icon: '❤️', tag: 'gold', cat: 'quest',
         title: `Witch's House — free 6,325 HP XP (instantly Level 23 HP)`,
-        detail: 'F2P. You need combat ~30 to handle the Shapeshifter. Your HP is behind your melee — this catches it up.',
+        detail: 'F2P. Combat 35+ recommended (consecutive Shapeshifter fight, no break). Your HP is behind your melee — this catches it up.',
         wiki: WIKI("Witch's House"),
       });
     }
 
     // Defence way behind
     if (def === 1 && Math.max(att, str) >= 20) {
-      const cur = currentTier('defence', def);
       recs.push({
+        id: 'train_defence_30', type: 'skill',
         priority: 1, icon: '🛡️', tag: 'red', cat: 'skill',
         title: `🚨 Defence is still 1 — train it to 30 at Sand Crabs (Defensive style)`,
         detail: `Without Defence you can't wear armor and you take massive damage. Crabclaw Isle (Hosidius) — multi-combat, AFK. ~20K xp/hr at your level.`,
@@ -281,9 +290,9 @@ const Recommender = (() => {
     // ===== 3. PRACTICAL QUESTS SHE CAN DO RIGHT NOW =====
     const readyQs = readyQuests(stats, completedQuestIds).slice(0, 4);
     for (const q of readyQs) {
-      // Skip ones we already added above
-      if (recs.some(r => r.title.includes(q.name))) continue;
+      if (recs.some(r => r.id === q.id)) continue;
       recs.push({
+        id: q.id, type: 'quest',
         priority: q.priority || 3,
         icon: '📜', tag: 'ready', cat: 'quest',
         title: `${q.name} — ${q.length || ''}`,
@@ -293,12 +302,13 @@ const Recommender = (() => {
     }
 
     // ===== 4. MASTER TASKS SHE QUALIFIES FOR =====
-    // (Skip milestones — they're aspirational targets, not actions)
     const readyTasks = readyMasterTasks(stats, completedQuestIds)
       .filter(t => t.category !== 'milestone')
       .slice(0, 5);
     for (const t of readyTasks) {
+      if (recs.some(r => r.id === t.id)) continue;
       recs.push({
+        id: t.id, type: 'master',
         priority: t.priority || 3,
         icon: t.icon, tag: t.priority === 1 ? 'gold' : 'green', cat: t.category,
         title: t.name,
@@ -318,6 +328,7 @@ const Recommender = (() => {
       const tier = currentTier(w.id, w.lvl);
       if (!tier) continue;
       recs.push({
+        id: `train_${w.id}`, type: 'skill',
         priority: 4, icon: w.icon, tag: 'blue', cat: 'skill',
         title: `${w.name} ${w.lvl} → ${tier.name} (${tier.xpHr} xp/hr)`,
         detail: `${tier.where}. ${tier.why}`,

@@ -66,6 +66,8 @@ const UI = (() => {
 
   // ---------- helpers ----------
   const COMPLETED_QUESTS_KEY = 'bvels10_completed_quests_v1';
+  const COMPLETED_RECS_KEY   = 'bvels10_completed_recs_v1';
+
   function loadCompletedQuests() {
     try { return new Set(JSON.parse(localStorage.getItem(COMPLETED_QUESTS_KEY) || '[]')); }
     catch { return new Set(); }
@@ -73,12 +75,30 @@ const UI = (() => {
   function saveCompletedQuests(set) {
     localStorage.setItem(COMPLETED_QUESTS_KEY, JSON.stringify([...set]));
   }
-  function completedSet() {
-    const fromTasks = TaskList.all().filter(t => t.done && t.id.startsWith('auto_')).map(t => t.id.replace(/^auto_/, ''));
-    const fromBulk = loadCompletedQuests();
-    for (const id of fromTasks) fromBulk.add(id);
-    return fromBulk;
+  function loadCompletedRecs() {
+    try { return new Set(JSON.parse(localStorage.getItem(COMPLETED_RECS_KEY) || '[]')); }
+    catch { return new Set(); }
   }
+  function saveCompletedRecs(set) {
+    localStorage.setItem(COMPLETED_RECS_KEY, JSON.stringify([...set]));
+  }
+  function recKey(r) { return `${r.type || 'rec'}:${r.id || r.title}`; }
+
+  function completedSet() {
+    return loadCompletedQuests();
+  }
+
+  // One-time cleanup of legacy auto-recs that accumulated in TaskList
+  (function cleanupLegacyAutoTasks() {
+    if (localStorage.getItem('bvels10_cleaned_v2')) return;
+    const all = TaskList.all();
+    for (const t of all) {
+      if (t.source === 'auto' || (t.id || '').startsWith('auto_')) {
+        TaskList.remove(t.id);
+      }
+    }
+    localStorage.setItem('bvels10_cleaned_v2', '1');
+  })();
 
   function sectionEl(name) {
     let el = document.querySelector(`.section[data-section="${name}"]`);
@@ -95,10 +115,12 @@ const UI = (() => {
   function renderNext() {
     const el = sectionEl('next');
     const completed = completedSet();
-    const recs = Recommender.topRecommendations(currentStats, completed);
-    const upcoming = Recommender.comingUpRecommendations(currentStats, completed);
+    const completedRecs = loadCompletedRecs();
+    const allRecs = Recommender.topRecommendations(currentStats, completed);
+    const recs = allRecs.filter(r => !completedRecs.has(recKey(r)));
+    const upcoming = Recommender.comingUpRecommendations(currentStats, completed)
+                                 .filter(r => !completedRecs.has(recKey(r)));
     const cb = Recommender.currentCombatLevel(currentStats);
-    TaskList.syncFromRecommendations(recs);
 
     const categoryTag = {
       starter: 'green', quest: 'gold', skill: 'blue', minigame: 'purple',
@@ -106,7 +128,8 @@ const UI = (() => {
       daily: 'green', skilling: 'blue'
     };
 
-    function renderCard(r, badge) {
+    function renderCard(r, badge, doneable) {
+      const key = recKey(r);
       return `
         <div class="card">
           <div class="card-header">
@@ -120,7 +143,12 @@ const UI = (() => {
             </div>
           </div>
           <p style="margin:6px 0 0;color:var(--text-soft);">${r.detail || ''}</p>
-          ${r.wiki ? `<p style="margin:8px 0 0;"><a class="wiki-link" target="_blank" href="${r.wiki}">Open Wiki →</a></p>` : ''}
+          <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;">
+            ${r.wiki ? `<a class="wiki-link" target="_blank" href="${r.wiki}">Wiki →</a>` : ''}
+            ${doneable ? `<button class="btn" style="font-size:12px;padding:5px 14px;margin-left:auto;"
+              data-key="${esc(key)}" data-type="${esc(r.type || '')}" data-id="${esc(r.id || '')}" data-title="${esc(r.title)}"
+              onclick="UI.markRecDone(this)">✓ Mark Done</button>` : ''}
+          </div>
         </div>
       `;
     }
@@ -132,17 +160,50 @@ const UI = (() => {
       </p>
 
       <h3>✨ Do these now (top priority)</h3>
-      ${recs.length === 0 ? '<p>Nothing new — keep training!</p>' : ''}
-      ${recs.map(r => renderCard(r, r.priority === 1 ? 'TOP' : null)).join('')}
+      ${recs.length === 0 ? '<p style="color:var(--text-soft);">All caught up! Check Coming Soon below ✨</p>' : ''}
+      ${recs.map(r => renderCard(r, r.priority === 1 ? 'TOP' : null, true)).join('')}
 
       ${upcoming.length ? `
         <h3>🔜 Coming Soon (within ~10 levels)</h3>
         <p style="color:var(--text-soft);font-size:13px;margin-top:-4px;">
           Things to plan for as she levels up. Each one tells you exactly what to train.
         </p>
-        ${upcoming.map(r => renderCard(r, 'soon')).join('')}
+        ${upcoming.map(r => renderCard(r, 'soon', false)).join('')}
+      ` : ''}
+
+      ${completedRecs.size ? `
+        <h3 style="margin-top:32px;">🎀 Completed (${completedRecs.size}) <button class="btn btn-soft" style="float:right;font-size:11px;padding:4px 10px;" onclick="UI.resetCompletedRecs()">Reset</button></h3>
+        <p style="color:var(--text-soft);font-size:12px;margin-top:-4px;">Recommendations you've marked done. They'll stay hidden from the lists above. 💕</p>
       ` : ''}
     `;
+  }
+
+  function markRecDone(btn) {
+    const key   = btn.dataset.key;
+    const type  = btn.dataset.type;
+    const id    = btn.dataset.id;
+    const title = btn.dataset.title;
+
+    const set = loadCompletedRecs();
+    set.add(key);
+    saveCompletedRecs(set);
+
+    // If it's a quest, also write to the bulk quest store so all views agree
+    if (type === 'quest' && id) {
+      const qSet = loadCompletedQuests();
+      qSet.add(id);
+      saveCompletedQuests(qSet);
+    }
+
+    Journal.add('done', `✅ Marked done: ${title}`, false);
+    renderAll();
+    toast(`✨ Marked done!`);
+  }
+
+  function resetCompletedRecs() {
+    if (!confirm('Clear all "done" markings? Hidden recommendations will reappear.')) return;
+    saveCompletedRecs(new Set());
+    renderAll();
   }
 
   // ============ MY TASKS ============
@@ -780,5 +841,6 @@ const UI = (() => {
            showManualEntry, saveManualEntry, clearManualEntry,
            showBulkQuestEditor, toggleBulkQuest, filterQuestEditor,
            bulkQuestFilter, resetBulkQuests, refreshAfterBulkEdit,
+           markRecDone, resetCompletedRecs,
            renderAllPublic: renderAll };
 })();
