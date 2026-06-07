@@ -8,6 +8,16 @@
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
+  // Warn if running from file:// — features will break
+  if (location.protocol === 'file:') {
+    const warn = document.createElement('div');
+    warn.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ffd700;color:#5a3a00;padding:10px 16px;text-align:center;z-index:1000;font-weight:700;font-size:13px;border-bottom:2px solid #b08400;';
+    warn.innerHTML = '⚠️ You\'re opening this as a local file (CORS-restricted). ' +
+                     '<a href="https://dbrokenai.github.io/OSRS-Guide/" style="color:#5a3a00;text-decoration:underline;">Click here to open the live site</a> — AI + manifest will work properly there. ' +
+                     '<span style="float:right;cursor:pointer;" onclick="this.parentElement.remove()">×</span>';
+    document.body.appendChild(warn);
+  }
+
   // Bond price ticker (OSRS Wiki realtime API has CORS enabled)
   async function fetchBondPrice() {
     try {

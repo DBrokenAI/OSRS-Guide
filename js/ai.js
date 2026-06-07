@@ -58,8 +58,23 @@ INSTRUCTIONS:
   // Tries to match common question patterns and answer from our own data.
   // Returns string if matched, null if not.
   function localAnswer(text, stats, completedQuestIds) {
-    const q = text.toLowerCase();
+    const q = text.toLowerCase().trim();
     const cb = stats ? combatLevel(Object.fromEntries(SKILL_META.filter(m => m.combat).map(m => [m.id, stats.skills[m.id]?.level || 1]))) : 1;
+
+    // Greetings
+    if (/^(hi+|hello+|hey+|sup|yo|hiya|hii+|heyy+)[!.?]*$/i.test(q)) {
+      return `Hi ${stats?.name || 'there'}! 💖\n\nI'm your OSRS guide. Ask me anything — try:\n• "what should I do next?"\n• "how do I make money?"\n• "where do I train mining?"\n• "tell me about vorkath"\n• "how do I do witch's house?"\n\nOr browse the tabs on the left ✨`;
+    }
+
+    // Help / what can you do
+    if (/(what (can|do) you|help|how does this work|what (do|should) i (ask|say))/i.test(q)) {
+      return `I can help with 💕\n\n• "what should I do next?" — personalized recommendations\n• "how do I make money?" — best gp/hr methods\n• "what gear should I wear?" — best items for your stats\n• "where do I train [skill]?" — current best method\n• "how do I get [skill] to [lvl]?" — XP needed + ETA\n• "tell me about [boss/quest/item]" — info lookup\n• "how do I do [quest]?" — walkthrough\n• "what's my combat level?" — stats check\n\nI also know about gear, slayer monsters, achievement diaries, daily routines, and pets. Just ask 💖`;
+    }
+
+    // Thanks
+    if (/^(thanks|thank you|thx|ty|cool|awesome|nice|great|cute)[!.?]*$/i.test(q)) {
+      return `You're welcome! 💖✨ ask me anything else whenever`;
+    }
 
     // "What should I do next?"
     if (/(what.{0,15}(should|do).{0,15}(next|now)|next up|i'?m bored|what to do)/i.test(q)) {
@@ -216,14 +231,22 @@ INSTRUCTIONS:
       }
     }
 
-    // All endpoints failed
-    const errMsg = {
-      role: 'assistant',
-      content: `💔 Free AI is overloaded right now (${lastErr?.message || 'no response'}).\n\n` +
-               `Try again in 30 seconds. In the meantime — check the Next Up tab, your live recommendations are personalized to your stats too. 💕`,
-      ts: Date.now(),
-      error: true,
-    };
+    // All endpoints failed — give a helpful fallback using local data
+    const recs = Recommender.topRecommendations(stats, completedQuestIds).slice(0, 3);
+    let fallback = `💭 I couldn't reach the AI brain for that one (free LLM is overloaded). Let me tell you what I DO know:\n\n`;
+    if (recs.length) {
+      fallback += `**Right now I'd suggest:**\n` +
+        recs.map((r, i) => `${i+1}. ${r.icon} ${stripHtml(r.title)}`).join('\n') +
+        `\n\n`;
+    }
+    fallback += `Try asking me something more specific — I know:\n` +
+                `• Quest walkthroughs (try "how do I do witch's potion?")\n` +
+                `• Training methods (try "where do I train fishing?")\n` +
+                `• Money methods (try "how do I make money?")\n` +
+                `• Gear (try "what gear should I wear?")\n` +
+                `• Bosses (try "tell me about scurrius")\n\n` +
+                `Or wait 30s and try the original question again 💕`;
+    const errMsg = { role: 'assistant', content: fallback, ts: Date.now(), error: true };
     messages.push(errMsg);
     save();
     return errMsg;
