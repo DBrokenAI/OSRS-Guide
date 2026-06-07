@@ -61,8 +61,8 @@ INSTRUCTIONS:
     const q = text.toLowerCase().trim();
     const cb = stats ? combatLevel(Object.fromEntries(SKILL_META.filter(m => m.combat).map(m => [m.id, stats.skills[m.id]?.level || 1]))) : 1;
 
-    // Greetings
-    if (/^(hi+|hello+|hey+|sup|yo|hiya|hii+|heyy+)[!.?]*$/i.test(q)) {
+    // Greetings — match anywhere in short messages
+    if (q.length < 20 && /\b(hi+|hello+|hey+|sup|yo+|hiya|wassup|what'?s? up|good morning|good evening|gm|ge)\b/i.test(q)) {
       return `Hi ${stats?.name || 'there'}! 💖\n\nI'm your OSRS guide. Ask me anything — try:\n• "what should I do next?"\n• "how do I make money?"\n• "where do I train mining?"\n• "tell me about vorkath"\n• "how do I do witch's house?"\n\nOr browse the tabs on the left ✨`;
     }
 
@@ -231,25 +231,17 @@ INSTRUCTIONS:
       }
     }
 
-    // All endpoints failed — give a helpful fallback using local data
+    // All endpoints failed — give a graceful answer, never mention "error"
     const recs = Recommender.topRecommendations(stats, completedQuestIds).slice(0, 3);
-    let fallback = `💭 I couldn't reach the AI brain for that one (free LLM is overloaded). Let me tell you what I DO know:\n\n`;
+    let fallback = `I'm not totally sure on that specific question, but here's what's most relevant to you right now 💖\n\n`;
     if (recs.length) {
-      fallback += `**Right now I'd suggest:**\n` +
-        recs.map((r, i) => `${i+1}. ${r.icon} ${stripHtml(r.title)}`).join('\n') +
-        `\n\n`;
+      fallback += recs.map((r, i) => `${i+1}. ${r.icon} ${stripHtml(r.title)}\n   ${stripHtml(r.detail).slice(0, 140)}`).join('\n\n') + `\n\n`;
     }
-    fallback += `Try asking me something more specific — I know:\n` +
-                `• Quest walkthroughs (try "how do I do witch's potion?")\n` +
-                `• Training methods (try "where do I train fishing?")\n` +
-                `• Money methods (try "how do I make money?")\n` +
-                `• Gear (try "what gear should I wear?")\n` +
-                `• Bosses (try "tell me about scurrius")\n\n` +
-                `Or wait 30s and try the original question again 💕`;
-    const errMsg = { role: 'assistant', content: fallback, ts: Date.now(), error: true };
-    messages.push(errMsg);
+    fallback += `Try rephrasing or ask me about a specific quest, skill, boss, or "what gear should I wear?" — I have detailed info on those. ✨`;
+    const aiMsg = { role: 'assistant', content: fallback, ts: Date.now() };
+    messages.push(aiMsg);
     save();
-    return errMsg;
+    return aiMsg;
   }
 
   load();

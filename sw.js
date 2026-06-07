@@ -1,7 +1,7 @@
 /* ==========================================================
    Service worker — basic offline cache for the guide.
    ========================================================== */
-const CACHE = 'osrs-guide-v2';
+const CACHE = 'osrs-guide-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -40,6 +40,20 @@ self.addEventListener('fetch', (e) => {
   const u = new URL(e.request.url);
   // never cache hiscores / API calls
   if (u.host.includes('runescape') || u.host.includes('wiseoldman') || u.host.includes('pollinations') || u.pathname.includes('/api/')) return;
+  // Network-first for JS/HTML/CSS so updates always show
+  if (/\.(js|html|css|json)$/.test(u.pathname) && u.origin === location.origin) {
+    e.respondWith(
+      fetch(e.request).then(resp => {
+        if (e.request.method === 'GET' && resp.ok) {
+          const clone = resp.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return resp;
+      }).catch(() => caches.match(e.request).then(r => r || caches.match('./index.html')))
+    );
+    return;
+  }
+  // Cache-first for everything else (fonts, images)
   e.respondWith(
     caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
       if (e.request.method === 'GET' && resp.ok && u.origin === location.origin) {
