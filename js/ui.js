@@ -1315,11 +1315,12 @@ const UI = (() => {
     const current = cfg.provider || 'openrouter';
     const html = `
       <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
-        <div class="modal" style="max-width:560px;">
-          <h3>⚙️ AI Assistant Settings</h3>
+        <div class="modal" style="max-width:580px;">
+          <h3>⚙️ AI Assistant Setup</h3>
           <p style="color:var(--text-soft);font-size:13px;">
-            Plug in a free API key to unlock a real AI agent. <strong>Recommended: OpenRouter</strong> — free Llama models, no credit card needed. 💖
+            Plug in a free API key to unlock a real AI agent that knows your stats. 💖
           </p>
+
           <div style="margin:14px 0;">
             <label style="font-size:12px;font-weight:700;color:var(--text-soft);">PROVIDER</label>
             <select id="ai-provider" onchange="UI.onProviderChange()" style="width:100%;padding:8px 12px;border-radius:10px;border:1px solid var(--card-border);font-family:var(--font-body);font-weight:600;margin-top:4px;">
@@ -1328,28 +1329,25 @@ const UI = (() => {
               `).join('')}
             </select>
           </div>
+
+          <div id="ai-signup-callout"></div>
+
           <div style="margin:14px 0;">
-            <label style="font-size:12px;font-weight:700;color:var(--text-soft);">API KEY <span id="ai-key-link" style="font-weight:500;">(<a href="${providers[current].signupUrl}" target="_blank" style="color:var(--pink-500);">get one free →</a>)</span></label>
+            <label style="font-size:12px;font-weight:700;color:var(--text-soft);">PASTE YOUR API KEY HERE</label>
             <input type="password" id="ai-apikey" value="${esc(cfg.apiKey || '')}"
               placeholder="sk-... or your-key-here"
-              style="width:100%;padding:8px 12px;border-radius:10px;border:1px solid var(--card-border);font-family:monospace;font-size:13px;margin-top:4px;">
-            <p style="font-size:11px;color:var(--text-faint);margin:4px 0 0;">Saved locally in your browser. Never sent anywhere except the provider you choose.</p>
+              style="width:100%;padding:10px 14px;border-radius:10px;border:2px solid var(--pink-200);font-family:monospace;font-size:13px;margin-top:4px;">
+            <p style="font-size:11px;color:var(--text-faint);margin:4px 0 0;">Saved locally in your browser. Never sent anywhere except the provider you picked.</p>
           </div>
+
           <div style="margin:14px 0;">
-            <label style="font-size:12px;font-weight:700;color:var(--text-soft);">MODEL (optional override)</label>
+            <label style="font-size:11px;font-weight:600;color:var(--text-soft);">MODEL (optional)</label>
             <input type="text" id="ai-model" value="${esc(cfg.model || '')}"
               placeholder="${esc(providers[current].defaultModel)}"
-              style="width:100%;padding:8px 12px;border-radius:10px;border:1px solid var(--card-border);font-family:monospace;font-size:13px;margin-top:4px;">
-            <p style="font-size:11px;color:var(--text-faint);margin:4px 0 0;">Leave blank to use the default. OpenRouter has many free models like <code>meta-llama/llama-3.2-3b-instruct:free</code> or <code>google/gemma-2-9b-it:free</code>.</p>
+              style="width:100%;padding:6px 12px;border-radius:10px;border:1px solid var(--card-border);font-family:monospace;font-size:12px;margin-top:4px;">
+            <p style="font-size:10px;color:var(--text-faint);margin:2px 0 0;">Leave blank for default.</p>
           </div>
-          <div style="background:var(--pink-50);padding:10px 14px;border-radius:10px;font-size:12px;margin-top:10px;">
-            <strong>💡 Quick setup for OpenRouter (recommended):</strong><br>
-            1. Click "get one free →" above<br>
-            2. Sign up (Google login works)<br>
-            3. Create an API key, copy it<br>
-            4. Paste here, save<br>
-            5. Done! Free Llama models for life ✨
-          </div>
+
           <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end;">
             <button class="modal-close" style="margin:0;" onclick="this.closest('.modal-backdrop').remove()">Cancel</button>
             <button class="btn" onclick="UI.saveAISettings()">💖 Save</button>
@@ -1360,20 +1358,91 @@ const UI = (() => {
     const div = document.createElement('div');
     div.innerHTML = html;
     document.body.appendChild(div.firstElementChild);
+    onProviderChange(); // render callout for the initially-selected provider
   }
 
+  const SIGNUP_CALLOUTS = {
+    openrouter: {
+      title: '🌸 OpenRouter — FREE Llama models, no credit card',
+      url: 'https://openrouter.ai/keys',
+      steps: [
+        'Click the button below — it opens the API keys page',
+        'Sign in with Google (1 click) or create an account',
+        'Click "Create Key" → name it whatever you want',
+        'Copy the key (starts with <code>sk-or-v1-...</code>)',
+        'Paste it in the field below, hit Save',
+      ],
+      buttonText: '✨ Create OpenRouter account + get key →',
+      buttonColor: 'linear-gradient(135deg, var(--pink-500), var(--pink-400))',
+    },
+    groq: {
+      title: '⚡ Groq — FREE & fast (Llama 3.3 70B)',
+      url: 'https://console.groq.com/keys',
+      steps: [
+        'Click the button below — opens Groq API keys page',
+        'Sign in or sign up (Google login works)',
+        'Click "Create API Key"',
+        'Copy the key (starts with <code>gsk_...</code>)',
+        'Paste it below + hit Save',
+      ],
+      buttonText: '⚡ Create Groq account + get key →',
+      buttonColor: 'linear-gradient(135deg, #ff7ab6, #ffd700)',
+    },
+    openai: {
+      title: '🔑 OpenAI — requires credit card',
+      url: 'https://platform.openai.com/api-keys',
+      steps: [
+        '⚠️ Note: OpenAI requires a credit card. $5 free credit on signup.',
+        'Click the button below',
+        'Sign in / sign up',
+        'Add a payment method',
+        'Create an API key, paste below',
+      ],
+      buttonText: 'Open OpenAI API keys →',
+      buttonColor: 'linear-gradient(135deg, #b08400, #e8388a)',
+    },
+    anthropic: {
+      title: '🤖 Anthropic Claude — requires credit card',
+      url: 'https://console.anthropic.com/settings/keys',
+      steps: [
+        '⚠️ Note: Anthropic requires payment setup.',
+        'Click the button below',
+        'Sign in / sign up + add payment',
+        'Create an API key',
+        'Paste below + hit Save',
+      ],
+      buttonText: 'Open Anthropic console →',
+      buttonColor: 'linear-gradient(135deg, #7e36c4, #ff7ab6)',
+    },
+    pollinations: {
+      title: '🌐 Pollinations — free public, often rate-limited',
+      url: null,
+      steps: ['No signup or key needed. May be slow or fail under load.'],
+      buttonText: null,
+      buttonColor: null,
+    },
+  };
+
   function onProviderChange() {
-    const providers = AIChat.getProviders();
     const sel = document.getElementById('ai-provider').value;
-    const p = providers[sel];
-    const link = document.getElementById('ai-key-link');
-    if (link && p.signupUrl) {
-      link.innerHTML = `(<a href="${p.signupUrl}" target="_blank" style="color:var(--pink-500);">get one free →</a>)`;
-    } else if (link) {
-      link.innerHTML = '(not required)';
+    const c = SIGNUP_CALLOUTS[sel];
+    const providers = AIChat.getProviders();
+    const calloutEl = document.getElementById('ai-signup-callout');
+    if (calloutEl && c) {
+      calloutEl.innerHTML = `
+        <div style="background:linear-gradient(135deg,var(--pink-50),#fff8d0);padding:14px 16px;border-radius:14px;margin:14px 0;border:1px solid var(--card-border);">
+          <div style="font-weight:800;font-size:14px;color:var(--pink-600);margin-bottom:10px;">${c.title}</div>
+          <ol style="margin:0 0 12px 18px;padding:0;font-size:13px;line-height:1.7;color:var(--text);">
+            ${c.steps.map(s => `<li>${s}</li>`).join('')}
+          </ol>
+          ${c.buttonText ? `
+            <a href="${c.url}" target="_blank" rel="noopener" style="display:inline-block;background:${c.buttonColor};color:white;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:700;font-size:13px;box-shadow:0 4px 14px rgba(232,56,138,0.3);">${c.buttonText}</a>
+          ` : ''}
+        </div>
+      `;
     }
     const model = document.getElementById('ai-model');
-    if (model) model.placeholder = p.defaultModel;
+    if (model && providers[sel]) model.placeholder = providers[sel].defaultModel;
   }
 
   function saveAISettings() {
