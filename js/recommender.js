@@ -215,11 +215,21 @@ const Recommender = (() => {
       });
     }
 
+    // Helper: dynamic "Level X → Y" based on her actual XP + quest reward
+    function projectLevelLabel(skillId, xpReward) {
+      const sk = stats.skills[skillId];
+      if (!sk) return `+${xpReward.toLocaleString()} XP`;
+      const newXp = sk.xp + xpReward;
+      const newLevel = levelFromXp(newXp);
+      if (newLevel > sk.level) return `${sk.level} → ${newLevel}`;
+      return `${sk.level} (+${xpReward.toLocaleString()} XP)`;
+    }
+
     if (pray < 9 && !completedQuestIds.has('restless_ghost')) {
       recs.push({
         id: 'restless_ghost', type: 'quest',
         priority: 1, icon: '🙏', tag: 'gold', cat: 'quest',
-        title: `The Restless Ghost (F2P) — Prayer 1 → 9, no combat needed`,
+        title: `The Restless Ghost (F2P) — Prayer ${projectLevelLabel('prayer', 1125)}, no combat needed`,
         detail: 'Free 1,125 Prayer XP. Path to Prayer 43 (Protect prayers — biggest combat unlock).',
         wiki: WIKI('The Restless Ghost'),
       });
@@ -229,7 +239,7 @@ const Recommender = (() => {
       recs.push({
         id: 'witchs_potion', type: 'quest',
         priority: 1, icon: '🔮', tag: 'blue', cat: 'quest',
-        title: `Witch's Potion — Magic 1 → 5, no combat needed (10 min)`,
+        title: `Witch's Potion — Magic ${projectLevelLabel('magic', 325)}, no combat needed (10 min)`,
         detail: 'Tiny F2P quest. 325 Magic XP. Tied with Cook\'s Assistant as the fastest XP per minute.',
         wiki: WIKI("Witch's Potion"),
       });
@@ -239,7 +249,7 @@ const Recommender = (() => {
       recs.push({
         id: 'cooks_assistant', type: 'quest',
         priority: 2, icon: '🍳', tag: 'green', cat: 'quest',
-        title: `Cook's Assistant — 300 Cooking XP in 5 min`,
+        title: `Cook's Assistant — Cooking ${projectLevelLabel('cooking', 300)} in 5 min`,
         detail: 'Easy F2P. Talk to the Cook in Lumbridge Castle kitchen. Bring milk, egg, flour from the cattle field nearby.',
         wiki: WIKI("Cook's Assistant"),
       });
@@ -249,7 +259,7 @@ const Recommender = (() => {
       recs.push({
         id: 'sheep_shearer', type: 'quest',
         priority: 2, icon: '✂️', tag: 'green', cat: 'quest',
-        title: `Sheep Shearer — 150 Crafting XP in 5 min`,
+        title: `Sheep Shearer — Crafting ${projectLevelLabel('crafting', 150)} in 5 min`,
         detail: 'F2P. Get shears from Fred the Farmer, shear 20 sheep, return the wool.',
         wiki: WIKI('Sheep Shearer'),
       });
@@ -259,7 +269,7 @@ const Recommender = (() => {
       recs.push({
         id: 'imp_catcher', type: 'quest',
         priority: 2, icon: '🔮', tag: 'blue', cat: 'quest',
-        title: `Imp Catcher — 875 Magic XP (gets you Magic 8+)`,
+        title: `Imp Catcher — Magic ${projectLevelLabel('magic', 875)}`,
         detail: 'F2P. Easy: buy 4 beads from GE, give to Wizard Mizgog. Path toward Magic 13 (Curse spells).',
         wiki: WIKI('Imp Catcher'),
       });
@@ -269,7 +279,7 @@ const Recommender = (() => {
       recs.push({
         id: 'dorics_quest', type: 'quest',
         priority: 2, icon: '⛏️', tag: 'green', cat: 'quest',
-        title: `Doric's Quest — Mining 1 → 10`,
+        title: `Doric's Quest — Mining ${projectLevelLabel('mining', 1300)}`,
         detail: 'F2P. Bring 6 clay, 4 copper, 2 iron ore to Doric (north of Falador). Quick easy Mining start.',
         wiki: WIKI("Doric's Quest"),
       });
@@ -363,7 +373,10 @@ const Recommender = (() => {
 
       const xpLines = Object.entries(q.xpRewards).map(([sid, xp]) => {
         const m = SKILL_META.find(mm => mm.id === sid);
-        return `${m?.icon || ''} +${xp.toLocaleString()} ${m?.name || sid}`;
+        const sk = stats.skills[sid];
+        const newLevel = sk ? levelFromXp(sk.xp + xp) : 1;
+        const levelChange = sk && newLevel > sk.level ? ` (${sk.level}→${newLevel})` : '';
+        return `${m?.icon || ''} +${xp.toLocaleString()} ${m?.name || sid}${levelChange}`;
       }).join(' · ');
 
       recs.push({
