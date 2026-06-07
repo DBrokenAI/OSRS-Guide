@@ -31,6 +31,8 @@ const UI = (() => {
     const cb = combatLevel(skillsByMeta);
     document.getElementById('combat-level').textContent = `⚔️ Combat ${cb}`;
     document.getElementById('total-level').textContent = `🎀 Total ${currentStats.totalLevel || 0}`;
+    const streak = DailyChecklist.getStreak();
+    document.getElementById('streak-pill').textContent = `🔥 ${streak.count} day${streak.count === 1 ? '' : 's'} streak`;
 
     const minsAgo = currentStats.fetchedAt ? Math.round((Date.now() - currentStats.fetchedAt) / 60000) : null;
     document.getElementById('last-update').textContent =
@@ -63,6 +65,14 @@ const UI = (() => {
     renderKeys();
     renderJournal();
     renderNotes();
+    // NEW
+    renderDailies();
+    renderGoals();
+    renderPets();
+    renderMusic();
+    renderSlayer();
+    renderLoadouts();
+    renderDiariesTab();
   }
 
   // ---------- helpers ----------
@@ -310,6 +320,10 @@ const UI = (() => {
             const sk = s[m.id] || { level: 1, xp: 0 };
             const recent = recentDiffs[m.id] && (now - recentDiffs[m.id] < 5*60*1000);
             const pending = sk._pending;
+            // Progress to next level (0-100%)
+            const curBase = xpForLevel(sk.level);
+            const nextBase = sk.level >= 99 ? curBase : xpForLevel(sk.level + 1);
+            const pct = sk.level >= 99 ? 100 : Math.max(0, Math.min(100, ((sk.xp - curBase) / (nextBase - curBase)) * 100));
             return `
               <div class="stat ${recent ? 'recently-gained' : ''}" ${pending ? 'title="Includes quest XP not yet on hiscores"' : ''}>
                 <span class="stat-icon">${m.icon}</span>
@@ -318,6 +332,7 @@ const UI = (() => {
                   <div class="stat-xp">${NUM(sk.xp)} xp${pending ? ` <span style="color:var(--pink-500);font-weight:700;">+${NUM(pending)} 💖</span>` : ''}</div>
                 </div>
                 <div class="stat-lvl">${sk.level}</div>
+                <div class="stat-progress"><div class="stat-progress-fill" style="width:${pct.toFixed(1)}%;"></div></div>
               </div>
             `;
           }).join('')}
@@ -375,6 +390,7 @@ const UI = (() => {
 
   function questCard(q, mode) {
     const reqsTxt = formatReqs(q.reqs);
+    const walkthrough = QUEST_WALKTHROUGHS[q.id];
     return `
       <div class="card">
         <div class="card-header">
@@ -385,6 +401,14 @@ const UI = (() => {
         <p style="margin:2px 0;font-size:13px;"><strong>Length:</strong> ${esc(q.length || '?')}</p>
         ${reqsTxt ? `<p style="margin:2px 0;font-size:13px;"><strong>Reqs:</strong> ${reqsTxt}</p>` : ''}
         <p style="margin:2px 0;font-size:13px;"><strong>Rewards:</strong> ${(q.rewards || []).map(esc).join(', ')}</p>
+        ${walkthrough ? `
+          <details style="margin:8px 0 0;background:var(--pink-50);border-radius:10px;padding:8px 12px;">
+            <summary style="cursor:pointer;font-weight:700;color:var(--pink-600);">📖 Quick walkthrough (${walkthrough.length} steps)</summary>
+            <ol style="margin:6px 0 0;padding-left:22px;font-size:13px;line-height:1.5;">
+              ${walkthrough.map(step => `<li>${esc(step)}</li>`).join('')}
+            </ol>
+          </details>
+        ` : ''}
         <p style="margin:8px 0 0;">
           <a class="wiki-link" target="_blank" href="${WIKI(q.name)}">Wiki guide →</a>
           ${mode === 'ready' ? ` &nbsp; <button class="btn btn-soft" style="font-size:12px;padding:4px 12px;" data-qname="${esc(q.name)}" onclick="UI.markQuestDone('${q.id}', this.dataset.qname)">Mark done ✓</button>` : ''}
@@ -883,11 +907,329 @@ const UI = (() => {
     if (window.AppBoot) window.AppBoot.refetch();
   }
 
+  // ============ DAILIES ============
+  function renderDailies() {
+    const el = sectionEl('dailies');
+    const completed = completedSet();
+    const items = DailyChecklist.eligibleItems(currentStats, completed);
+    const today = DailyChecklist.getTodayState();
+    const streak = DailyChecklist.getStreak();
+    el.innerHTML = `
+      <h2>📅 Daily Checklist</h2>
+      <p style="color:var(--text-soft);">
+        Resets at midnight. Streak: <strong>🔥 ${streak.count} day${streak.count === 1 ? '' : 's'}</strong> ✨
+      </p>
+      ${['farm','profit','pvm','minigame','maint','fun'].map(cat => {
+        const catItems = items.filter(i => i.category === cat);
+        if (!catItems.length) return '';
+        const labels = { farm: '🌿 Farm runs', profit: '💰 Profit', pvm: '⚔️ PvM', minigame: '🎮 Minigames', maint: '🔧 Maintenance', fun: '💕 Fun' };
+        return `
+          <h3>${labels[cat]}</h3>
+          ${catItems.map(i => `
+            <div class="task-row ${today[i.id] ? 'done' : ''}">
+              <div class="task-check ${today[i.id] ? 'checked' : ''}" onclick="UI.toggleDaily('${i.id}')"></div>
+              <div class="task-body">
+                <div class="task-label">${i.icon} ${esc(i.name)}</div>
+                <div class="task-meta">${esc(i.why)}</div>
+              </div>
+            </div>
+          `).join('')}
+        `;
+      }).join('')}
+      <p style="color:var(--text-faint);font-size:12px;margin-top:24px;">Items grayed out = you don't meet the reqs yet. Train up to unlock them ✨</p>
+    `;
+  }
+
+  function toggleDaily(id) {
+    DailyChecklist.toggle(id);
+    renderDailies();
+    renderHeader();
+  }
+
+  // ============ GOALS ============
+  function renderGoals() {
+    const el = sectionEl('goals');
+    const active = Goals.active();
+    const done = Goals.all().filter(g => g.completed);
+    el.innerHTML = `
+      <h2>🎯 Goals</h2>
+      <p style="color:var(--text-soft);">Set custom targets. ETA estimates use weekly XP gains. ✨</p>
+
+      <div class="card">
+        <div class="card-title">➕ Add a skill goal</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;">
+          <select id="goal-skill" style="padding:6px 12px;border-radius:999px;border:1px solid var(--card-border);font-family:var(--font-body);font-weight:600;">
+            ${SKILL_META.map(m => `<option value="${m.id}">${m.icon} ${m.name}</option>`).join('')}
+          </select>
+          <input type="number" id="goal-level" min="1" max="99" placeholder="target lvl"
+            style="width:90px;padding:6px 12px;border-radius:999px;border:1px solid var(--card-border);">
+          <input type="date" id="goal-deadline" style="padding:6px 12px;border-radius:999px;border:1px solid var(--card-border);">
+          <button class="btn" onclick="UI.addSkillGoal()">+ Add</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <input id="goal-task" placeholder="…or add a custom goal (e.g. 'get Fire Cape')"
+            style="flex:1;padding:8px 16px;border-radius:999px;border:1px solid var(--card-border);">
+          <button class="btn" onclick="UI.addTaskGoal()">+ Custom</button>
+        </div>
+      </div>
+
+      <h3>Active (${active.length})</h3>
+      ${active.length === 0 ? '<p style="color:var(--text-soft);">No goals yet — set one above! ✨</p>' : ''}
+      ${active.map(g => goalCard(g)).join('')}
+
+      ${done.length ? `<h3>Completed (${done.length})</h3>${done.slice(-10).map(g => goalCard(g)).join('')}` : ''}
+    `;
+  }
+
+  function goalCard(g) {
+    let etaText = '';
+    if (g.type === 'skill') {
+      const m = SKILL_META.find(mm => mm.id === g.skill);
+      const sk = currentStats.skills[g.skill];
+      const xpNeeded = Math.max(0, xpForLevel(g.targetLevel) - (sk?.xp || 0));
+      etaText = xpNeeded === 0
+        ? '🎉 Already at target!'
+        : `${(xpNeeded).toLocaleString()} XP to go`;
+    }
+    const dl = Goals.deadlineStatus(g);
+    return `
+      <div class="card" style="${g.completed ? 'opacity:0.55;' : ''}">
+        <div class="card-header">
+          <div class="card-title">
+            <div class="task-check ${g.completed ? 'checked' : ''}" onclick="UI.toggleGoal('${g.id}')" style="display:inline-flex;"></div>
+            <span>${Goals.describe(g)}</span>
+          </div>
+          <button class="task-delete" onclick="UI.removeGoal('${g.id}')">×</button>
+        </div>
+        ${etaText ? `<p style="margin:6px 0 0;color:var(--text-soft);">${etaText}</p>` : ''}
+        ${dl ? `<p style="margin:4px 0 0;font-size:12px;color:${dl.days < 0 ? '#c43a3a' : 'var(--text-soft)'};">
+          ${dl.days < 0 ? `⏰ Overdue by ${-dl.days} days` : dl.days === 0 ? '⏰ Due today!' : `⏰ ${dl.days} days left (${dl.dueDate})`}
+        </p>` : ''}
+      </div>
+    `;
+  }
+
+  function addSkillGoal() {
+    const skill = document.getElementById('goal-skill').value;
+    const level = document.getElementById('goal-level').value;
+    const deadline = document.getElementById('goal-deadline').value;
+    if (!level) { toast('💔 Pick a target level'); return; }
+    Goals.addSkillGoal(skill, level, deadline);
+    renderGoals();
+  }
+  function addTaskGoal() {
+    const text = document.getElementById('goal-task').value;
+    if (!text.trim()) return;
+    Goals.addTaskGoal(text);
+    document.getElementById('goal-task').value = '';
+    renderGoals();
+  }
+  function toggleGoal(id) {
+    Goals.toggle(id);
+    renderGoals();
+    Confetti.fire();
+  }
+  function removeGoal(id) { Goals.remove(id); renderGoals(); }
+
+  // ============ PETS ============
+  function renderPets() {
+    const el = sectionEl('pets');
+    el.innerHTML = `
+      <h2>🐾 Pet Collection</h2>
+      <p style="color:var(--text-soft);">Cute companions and their drop rates ✨</p>
+      <div class="grid">
+        ${PETS.map(p => `
+          <div class="card">
+            <div class="card-title">${p.icon} ${esc(p.name)}</div>
+            <p style="margin:4px 0;font-size:13px;"><strong>From:</strong> ${esc(p.source)}</p>
+            <p style="margin:4px 0;font-size:13px;color:var(--text-soft);"><strong>Rate:</strong> ${esc(p.rate)}</p>
+            <p style="margin:6px 0 0;"><a class="wiki-link" target="_blank" href="${WIKI(p.wiki)}">Wiki →</a></p>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  // ============ MUSIC ============
+  function renderMusic() {
+    const el = sectionEl('music');
+    el.innerHTML = `
+      <h2>🎵 Music Cape Highlights</h2>
+      <p style="color:var(--text-soft);">Notable tracks worth unlocking — the music cape is a hidden cosmetic goal. ✨</p>
+      <table class="method-table">
+        <tr><th>Track</th><th>Where to unlock</th><th>Category</th></tr>
+        ${MUSIC_TRACKS.map(t => `
+          <tr>
+            <td><strong>${esc(t.name)}</strong></td>
+            <td>${esc(t.where)}</td>
+            <td><span class="tag">${esc(t.category)}</span></td>
+          </tr>
+        `).join('')}
+      </table>
+      <p style="color:var(--text-faint);font-size:12px;margin-top:14px;">There are ~800 tracks total. Use RuneLite's Music plugin to track unlocks.</p>
+    `;
+  }
+
+  // ============ SLAYER ============
+  function renderSlayer() {
+    const el = sectionEl('slayer');
+    const slLvl = currentStats.skills.slayer?.level || 1;
+    el.innerHTML = `
+      <h2>💀 Slayer Assistant</h2>
+      <p style="color:var(--text-soft);">Your Slayer: <strong>level ${slLvl}</strong>. Monsters you can task right now ✨</p>
+      <div class="grid">
+        ${SLAYER_MONSTERS.filter(m => m.reqs.slayer <= slLvl).map(m => `
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">💀 ${esc(m.name)}</div>
+              <span class="tag green">Slayer ${m.reqs.slayer}</span>
+            </div>
+            <p style="margin:4px 0;font-size:13px;"><strong>Where:</strong> ${esc(m.location)}</p>
+            <p style="margin:4px 0;font-size:13px;"><strong>Gear:</strong> ${esc(m.gear)}</p>
+            <p style="margin:6px 0 0;color:var(--text-soft);font-size:13px;">${esc(m.tips)}</p>
+          </div>
+        `).join('')}
+      </div>
+      ${SLAYER_MONSTERS.filter(m => m.reqs.slayer > slLvl).length ? `
+        <h3>🔒 Locked (level up to unlock)</h3>
+        <div class="grid">
+          ${SLAYER_MONSTERS.filter(m => m.reqs.slayer > slLvl).slice(0, 6).map(m => `
+            <div class="card" style="opacity:0.6;">
+              <div class="card-header">
+                <div class="card-title">💀 ${esc(m.name)}</div>
+                <span class="tag locked">Slayer ${m.reqs.slayer}</span>
+              </div>
+              <p style="margin:4px 0;font-size:13px;">${esc(m.location)}</p>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+    `;
+  }
+
+  // ============ LOADOUTS ============
+  function renderLoadouts() {
+    const el = sectionEl('loadouts');
+    el.innerHTML = `
+      <h2>🎒 Boss Loadouts</h2>
+      <p style="color:var(--text-soft);">Exact gear + inventory for each boss. Copy-paste into your bank tags. ✨</p>
+      ${Object.entries(BOSS_LOADOUTS).map(([id, l]) => `
+        <div class="card">
+          <div class="card-title">🎒 ${esc(l.boss)}</div>
+          <p style="margin:6px 0;"><strong>👕 Gear:</strong></p>
+          <ul style="margin:4px 0;padding-left:22px;font-size:13px;">
+            ${l.gear.map(g => `<li>${esc(g)}</li>`).join('')}
+          </ul>
+          <p style="margin:6px 0;"><strong>🎒 Inventory:</strong></p>
+          <ul style="margin:4px 0;padding-left:22px;font-size:13px;">
+            ${l.inventory.map(i => `<li>${esc(i)}</li>`).join('')}
+          </ul>
+          <p style="margin:8px 0 0;padding:8px 12px;background:var(--pink-50);border-left:3px solid var(--pink-400);border-radius:8px;font-size:13px;"><strong>💡 Notes:</strong> ${esc(l.notes)}</p>
+        </div>
+      `).join('')}
+    `;
+  }
+
+  // ============ FULL DIARIES TAB ============
+  function renderDiariesTab() {
+    const el = sectionEl('diariestab');
+    el.innerHTML = `
+      <h2>📔 Achievement Diaries (All Regions)</h2>
+      <p style="color:var(--text-soft);">Each tier unlocks better rewards. Detailed task lists on wiki. ✨</p>
+      ${DIARIES.map(d => `
+        <div class="card">
+          <div class="card-title">${d.icon} ${esc(d.region)}</div>
+          ${d.tiers.map(t => `
+            <details style="margin:8px 0;border:1px solid var(--pink-100);border-radius:10px;padding:10px;">
+              <summary style="cursor:pointer;font-weight:700;color:${t.tier === 'Elite' ? '#b08400' : 'var(--text)'};">
+                ${t.tier} (${t.tasks} tasks)
+              </summary>
+              <p style="margin:6px 0;color:var(--text-soft);font-size:13px;">${esc(t.reward)}</p>
+              <a class="wiki-link" target="_blank" href="${WIKI(t.wiki)}">Wiki task list →</a>
+            </details>
+          `).join('')}
+        </div>
+      `).join('')}
+    `;
+  }
+
+  // ============ GLOBAL SEARCH ============
+  function globalSearch(q) {
+    const results = [];
+    const query = q.toLowerCase();
+    if (query.length < 2) return results;
+    for (const it of QUESTS) if (it.name.toLowerCase().includes(query)) results.push({ kind: 'quest', name: it.name, tab: 'quests' });
+    for (const it of MASTER_TASKS) if (it.name.toLowerCase().includes(query)) results.push({ kind: 'task', name: it.name, tab: 'next' });
+    for (const it of BOSSES) if (it.name.toLowerCase().includes(query)) results.push({ kind: 'boss', name: it.name, tab: 'bosses' });
+    for (const it of SLAYER_MONSTERS) if (it.name.toLowerCase().includes(query)) results.push({ kind: 'slayer', name: it.name, tab: 'slayer' });
+    for (const it of PETS) if (it.name.toLowerCase().includes(query)) results.push({ kind: 'pet', name: it.name, tab: 'pets' });
+    for (const it of MONEY_METHODS) if (it.name.toLowerCase().includes(query)) results.push({ kind: 'money', name: it.name, tab: 'money' });
+    for (const it of PLUGINS) if (it.name.toLowerCase().includes(query)) results.push({ kind: 'plugin', name: it.name, tab: 'plugins' });
+    for (const m of SKILL_META) if (m.name.toLowerCase().includes(query)) results.push({ kind: 'skill', name: m.name, tab: 'skills' });
+    return results.slice(0, 12);
+  }
+
+  function handleSearch() {
+    const q = document.getElementById('global-search')?.value || '';
+    const wrap = document.getElementById('global-search-results');
+    if (!wrap) return;
+    const results = globalSearch(q);
+    if (!q || !results.length) { wrap.innerHTML = ''; return; }
+    wrap.innerHTML = `
+      <div style="background:var(--card-bg-strong);border:1px solid var(--card-border);border-radius:14px;padding:8px;margin-top:6px;box-shadow:var(--shadow-pop);">
+        ${results.map(r => `
+          <div style="padding:6px 10px;cursor:pointer;border-radius:8px;display:flex;justify-content:space-between;align-items:center;" onmouseover="this.style.background='var(--pink-50)'" onmouseout="this.style.background='transparent'" onclick="UI.jumpToTab('${r.tab}')">
+            <span><strong>${esc(r.name)}</strong></span>
+            <span class="tag">${r.kind}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function jumpToTab(tab) {
+    document.getElementById('global-search').value = '';
+    document.getElementById('global-search-results').innerHTML = '';
+    showSection(tab);
+  }
+
+  // ============ I'M BORED ============
+  function showBored() {
+    if (!currentStats) return;
+    const completed = completedSet();
+    const all = [...Recommender.readyMasterTasks(currentStats, completed),
+                 ...Recommender.readyQuests(currentStats, completed)];
+    if (!all.length) { toast('Nothing immediately ready — go check Coming Up 💕'); return; }
+    const pick = all[Math.floor(Math.random() * all.length)];
+    const isQuest = QUESTS.some(q => q.id === pick.id);
+    const html = `
+      <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
+        <div class="modal">
+          <h3>🎲 Try this!</h3>
+          <p style="color:var(--text-soft);font-size:13px;">Random pick from things she qualifies for right now. ✨</p>
+          <div style="margin:12px 0;padding:14px;background:var(--pink-50);border-radius:12px;">
+            <div style="font-size:20px;font-weight:700;">${pick.icon || '📜'} ${esc(pick.name)}</div>
+            <p style="margin:8px 0 0;color:var(--text-soft);">${esc(pick.why || '')}</p>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn" onclick="this.closest('.modal-backdrop').remove();UI.showBored();">🎲 Re-roll</button>
+            <button class="modal-close" onclick="this.closest('.modal-backdrop').remove()" style="margin:0;">Close</button>
+          </div>
+        </div>
+      </div>
+    `;
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    document.body.appendChild(div.firstElementChild);
+  }
+
   return { setStats, showSection, addTask, toggleTask, removeTask, clearDone,
            markQuestDone, toggleDiary, toast, showPanic,
            showManualEntry, saveManualEntry, clearManualEntry,
            showBulkQuestEditor, toggleBulkQuest, filterQuestEditor,
            bulkQuestFilter, resetBulkQuests, refreshAfterBulkEdit,
            markRecDone, resetCompletedRecs,
+           toggleDaily, addSkillGoal, addTaskGoal, toggleGoal, removeGoal,
+           handleSearch, jumpToTab, showBored,
            renderAllPublic: renderAll };
 })();

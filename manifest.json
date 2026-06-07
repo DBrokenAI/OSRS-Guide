@@ -1,0 +1,21 @@
+{
+  "name": "bvels10's OSRS Adventure Guide",
+  "short_name": "OSRS Guide",
+  "description": "Personal OSRS roadmap with live hiscores, quest tracking, and progressive recommendations",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#ffe1ef",
+  "theme_color": "#ff7ab6",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' fill='%23ff7ab6'/%3E%3Ctext y='168' font-size='160' x='16'%3E💖%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%23ff7ab6'/%3E%3Ctext y='448' font-size='440' x='42'%3E💖%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

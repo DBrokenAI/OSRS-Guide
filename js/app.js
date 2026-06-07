@@ -3,6 +3,29 @@
    ========================================================== */
 (function () {
 
+  // Register service worker (PWA / offline)
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+
+  // Bond price ticker (OSRS Wiki realtime API has CORS enabled)
+  async function fetchBondPrice() {
+    try {
+      const r = await fetch('https://prices.runescape.wiki/api/v1/osrs/latest?id=13190', {
+        headers: { 'User-Agent': 'osrs-guide-personal' }
+      });
+      if (!r.ok) return;
+      const data = await r.json();
+      const price = data?.data?.['13190']?.high;
+      if (price) {
+        document.getElementById('bond-pill').textContent = `💍 Bond ${(price/1e6).toFixed(1)}M`;
+        document.getElementById('bond-pill').classList.remove('subtle');
+      }
+    } catch (_) {}
+  }
+  fetchBondPrice();
+  setInterval(fetchBondPrice, 30 * 60 * 1000); // refresh every 30 min
+
   // Tab switching
   document.getElementById('tabs').addEventListener('click', (e) => {
     const btn = e.target.closest('.tab');
@@ -11,7 +34,8 @@
   });
 
   // Pre-create sections so UI.showSection works
-  ['next','tasks','stats','quests','combat','skills','bosses','money','gear','diaries','plugins','rules','keys','journal','notes']
+  ['next','tasks','stats','quests','combat','skills','bosses','money','gear','diaries','plugins','rules','keys','journal','notes',
+   'dailies','goals','pets','music','slayer','loadouts','diariestab']
     .forEach(name => {
       const sec = document.createElement('section');
       sec.className = 'section' + (name === 'next' ? ' active' : '');
@@ -33,6 +57,8 @@
   document.getElementById('manual-btn').addEventListener('click', () => UI.showManualEntry());
   document.getElementById('quests-btn').addEventListener('click', () => UI.showBulkQuestEditor());
   document.getElementById('panic-btn').addEventListener('click', () => UI.showPanic());
+  document.getElementById('bored-btn').addEventListener('click', () => UI.showBored());
+  document.getElementById('global-search').addEventListener('input', () => UI.handleSearch());
 
   async function startForUser(username) {
     UI.toast(`✨ Fetching ${username}'s stats…`);
@@ -64,6 +90,7 @@
               return `${m.icon} ${m.name} → ${d.toLvl}!`;
             }).join('<br>');
             UI.toast(`🎉 Level up!<br>${summary}`);
+            Confetti.fire({ count: 120 });
           } else {
             const totalXp = Object.values(diff).reduce((s, d) => s + (d.xpDiff || 0), 0);
             if (totalXp > 1000) UI.toast(`✨ +${totalXp.toLocaleString()} XP since last check 💕`);

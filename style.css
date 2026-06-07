@@ -375,6 +375,20 @@ main {
 .stat-lvl  { font-size: 18px; font-weight: 700; color: var(--pink-600); margin-left: auto; }
 .stat-xp   { font-size: 10px; color: var(--text-faint); }
 
+.stat-progress {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  background: rgba(255,122,182,0.15);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  overflow: hidden;
+}
+.stat-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--pink-400), var(--pink-500), gold);
+  transition: width 0.6s ease;
+}
+
 .stat.recently-leveled {
   background: linear-gradient(135deg, #fff3d0, #ffe1ef);
   border-color: gold;
