@@ -1312,7 +1312,7 @@ const UI = (() => {
   function showAISettings() {
     const providers = AIChat.getProviders();
     const cfg = AIChat.loadConfig();
-    const current = cfg.provider || 'openrouter';
+    const current = cfg.provider || 'groq';
     const html = `
       <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
         <div class="modal" style="max-width:580px;">
@@ -1362,31 +1362,44 @@ const UI = (() => {
   }
 
   const SIGNUP_CALLOUTS = {
-    openrouter: {
-      title: '🌸 OpenRouter — FREE Llama models, no credit card',
-      url: 'https://openrouter.ai/keys',
-      steps: [
-        'Click the button below — it opens the API keys page',
-        'Sign in with Google (1 click) or create an account',
-        'Click "Create Key" → name it whatever you want',
-        'Copy the key (starts with <code>sk-or-v1-...</code>)',
-        'Paste it in the field below, hit Save',
-      ],
-      buttonText: '✨ Create OpenRouter account + get key →',
-      buttonColor: 'linear-gradient(135deg, var(--pink-500), var(--pink-400))',
-    },
     groq: {
-      title: '⚡ Groq — FREE & fast (Llama 3.3 70B)',
+      title: '⚡ Groq — FREE Llama 3.3 70B · 30 requests/min · 14,400/day',
       url: 'https://console.groq.com/keys',
       steps: [
         'Click the button below — opens Groq API keys page',
-        'Sign in or sign up (Google login works)',
-        'Click "Create API Key"',
+        'Sign in with Google (one click) or create a free account',
+        'Click "Create API Key" → name it whatever',
         'Copy the key (starts with <code>gsk_...</code>)',
-        'Paste it below + hit Save',
+        'Paste it below + hit Save 💖',
       ],
       buttonText: '⚡ Create Groq account + get key →',
       buttonColor: 'linear-gradient(135deg, #ff7ab6, #ffd700)',
+    },
+    cerebras: {
+      title: '🚀 Cerebras — FREE 1M tokens/day · 30 req/min · fastest inference',
+      url: 'https://cloud.cerebras.ai/?redirect=/platform/api-keys',
+      steps: [
+        'Click the button below — opens Cerebras platform',
+        'Sign up (Google login works, no card needed)',
+        'Navigate to API Keys → Create',
+        'Copy the key (starts with <code>csk-...</code>)',
+        'Paste it below + hit Save',
+      ],
+      buttonText: '🚀 Create Cerebras account + get key →',
+      buttonColor: 'linear-gradient(135deg, #c84fb8, #ff7ab6)',
+    },
+    openrouter: {
+      title: '🌸 OpenRouter — paid models great, free models heavily rate-limited 😢',
+      url: 'https://openrouter.ai/keys',
+      steps: [
+        '⚠️ Free :free models share a global pool — 1 message per 5+ minutes is normal',
+        'Better: add $5 credit ONCE to unlock cheap paid models (Gemini Flash = ~$0.0001/question)',
+        'Sign in with Google',
+        'Click "Create Key"',
+        'Paste key below, optionally pick a paid model like <code>google/gemini-2.0-flash-001</code>',
+      ],
+      buttonText: 'Open OpenRouter keys →',
+      buttonColor: 'linear-gradient(135deg, var(--pink-500), var(--pink-400))',
     },
     openai: {
       title: '🔑 OpenAI — requires credit card',

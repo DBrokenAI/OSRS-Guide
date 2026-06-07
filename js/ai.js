@@ -10,8 +10,28 @@ const AIChat = (() => {
 
   // Provider presets (OpenAI-compatible chat completions)
   const PROVIDERS = {
+    groq: {
+      name: '⚡ Groq (RECOMMENDED — free, fast, no rate-limit pain)',
+      url: 'https://api.groq.com/openai/v1/chat/completions',
+      defaultModel: 'llama-3.3-70b-versatile',
+      signupUrl: 'https://console.groq.com/keys',
+      headers: (key) => ({
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      }),
+    },
+    cerebras: {
+      name: '🚀 Cerebras (free, very fast)',
+      url: 'https://api.cerebras.ai/v1/chat/completions',
+      defaultModel: 'llama-3.3-70b',
+      signupUrl: 'https://cloud.cerebras.ai/?redirect=/platform/api-keys',
+      headers: (key) => ({
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      }),
+    },
     openrouter: {
-      name: 'OpenRouter',
+      name: 'OpenRouter (free models heavily rate-limited)',
       url: 'https://openrouter.ai/api/v1/chat/completions',
       defaultModel: 'meta-llama/llama-3.2-3b-instruct:free',
       signupUrl: 'https://openrouter.ai/keys',
@@ -20,16 +40,6 @@ const AIChat = (() => {
         'Content-Type': 'application/json',
         'HTTP-Referer': location.origin,
         'X-Title': 'bvels10 OSRS Guide',
-      }),
-    },
-    groq: {
-      name: 'Groq',
-      url: 'https://api.groq.com/openai/v1/chat/completions',
-      defaultModel: 'llama-3.3-70b-versatile',
-      signupUrl: 'https://console.groq.com/keys',
-      headers: (key) => ({
-        'Authorization': `Bearer ${key}`,
-        'Content-Type': 'application/json',
       }),
     },
     openai: {
