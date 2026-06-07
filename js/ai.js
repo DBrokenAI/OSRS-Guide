@@ -5,13 +5,66 @@
    ========================================================== */
 const AIChat = (() => {
   const KEY = 'bvels10_chat_v1';
-  // Try multiple endpoints/models — fall through on rate limit
-  const ENDPOINTS = [
-    { url: 'https://text.pollinations.ai/openai',  model: 'openai',      method: 'POST' },
-    { url: 'https://text.pollinations.ai/openai',  model: 'mistral',     method: 'POST' },
-    { url: 'https://text.pollinations.ai/openai',  model: 'llama',       method: 'POST' },
-  ];
-  const MAX_HISTORY = 50; // keep last 50 messages
+  const CONFIG_KEY = 'bvels10_ai_config_v1';
+  const MAX_HISTORY = 50;
+
+  // Provider presets (OpenAI-compatible chat completions)
+  const PROVIDERS = {
+    openrouter: {
+      name: 'OpenRouter',
+      url: 'https://openrouter.ai/api/v1/chat/completions',
+      defaultModel: 'meta-llama/llama-3.2-3b-instruct:free',
+      signupUrl: 'https://openrouter.ai/keys',
+      headers: (key) => ({
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': location.origin,
+        'X-Title': 'bvels10 OSRS Guide',
+      }),
+    },
+    groq: {
+      name: 'Groq',
+      url: 'https://api.groq.com/openai/v1/chat/completions',
+      defaultModel: 'llama-3.3-70b-versatile',
+      signupUrl: 'https://console.groq.com/keys',
+      headers: (key) => ({
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      }),
+    },
+    openai: {
+      name: 'OpenAI',
+      url: 'https://api.openai.com/v1/chat/completions',
+      defaultModel: 'gpt-4o-mini',
+      signupUrl: 'https://platform.openai.com/api-keys',
+      headers: (key) => ({
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      }),
+    },
+    anthropic: {
+      name: 'Anthropic',
+      url: 'https://api.anthropic.com/v1/messages',
+      defaultModel: 'claude-3-5-haiku-20241022',
+      signupUrl: 'https://console.anthropic.com/settings/keys',
+      headers: (key) => ({
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+        'Content-Type': 'application/json',
+      }),
+      isAnthropic: true,
+    },
+    // Fallback only — free public, rate-limited
+    pollinations: {
+      name: 'Pollinations (free, often overloaded)',
+      url: 'https://text.pollinations.ai/openai',
+      defaultModel: 'openai',
+      signupUrl: null,
+      headers: () => ({ 'Content-Type': 'application/json' }),
+      noAuth: true,
+    },
+  };
 
   let messages = []; // [{ role:'user'|'assistant', content, ts }]
 
@@ -188,62 +241,83 @@ INSTRUCTIONS:
       return aiMsg;
     }
 
+    // 2. Build prompt + call configured LLM
+    const cfg = loadConfig();
+    const provider = PROVIDERS[cfg.provider] || PROVIDERS.pollinations;
     const sysPrompt = buildSystemPrompt(stats, completedQuestIds);
     const recent = messages.slice(-12).map(m => ({ role: m.role, content: m.content }));
-    const fullMessages = [{ role: 'system', content: sysPrompt }, ...recent];
 
-    // Try each endpoint/model with one retry each
-    let lastErr = null;
-    for (const ep of ENDPOINTS) {
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          const r = await fetch(ep.url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              model: ep.model,
-              messages: fullMessages,
-              stream: false,
-              referrer: 'bvels10-osrs-guide',
-            }),
-          });
-          if (r.status === 429) {
-            // Rate limited — wait and retry on next attempt
-            await new Promise(res => setTimeout(res, 1500 * (attempt + 1)));
-            lastErr = new Error('rate limited');
-            continue;
-          }
-          if (!r.ok) {
-            lastErr = new Error('LLM returned ' + r.status);
-            break; // try next endpoint
-          }
-          const data = await r.json();
-          const content = data?.choices?.[0]?.message?.content
-                       || data?.content
-                       || '(empty response)';
-          const aiMsg = { role: 'assistant', content, ts: Date.now() };
-          messages.push(aiMsg);
-          save();
-          return aiMsg;
-        } catch (e) {
-          lastErr = e;
-        }
+    let body;
+    if (provider.isAnthropic) {
+      body = {
+        model: cfg.model || provider.defaultModel,
+        max_tokens: 800,
+        system: sysPrompt,
+        messages: recent,
+      };
+    } else {
+      body = {
+        model: cfg.model || provider.defaultModel,
+        messages: [{ role: 'system', content: sysPrompt }, ...recent],
+        stream: false,
+        temperature: 0.6,
+      };
+    }
+
+    try {
+      const r = await fetch(provider.url, {
+        method: 'POST',
+        headers: provider.headers(cfg.apiKey || ''),
+        body: JSON.stringify(body),
+      });
+      if (r.status === 401 || r.status === 403) {
+        throw new Error('Bad API key — check Settings ⚙️');
       }
+      if (r.status === 429) {
+        throw new Error('Rate limited');
+      }
+      if (!r.ok) {
+        const txt = await r.text();
+        throw new Error(`LLM ${r.status}: ${txt.slice(0, 100)}`);
+      }
+      const data = await r.json();
+      const content = data?.choices?.[0]?.message?.content
+                   || data?.content?.[0]?.text
+                   || '(empty response)';
+      const aiMsg = { role: 'assistant', content, ts: Date.now() };
+      messages.push(aiMsg);
+      save();
+      return aiMsg;
+    } catch (e) {
+      // Graceful fallback using local data
+      const recs = Recommender.topRecommendations(stats, completedQuestIds).slice(0, 3);
+      let fallback;
+      if (!cfg.apiKey) {
+        fallback = `💖 I can't fully answer that yet — to unlock full AI, click the ⚙️ Settings button and add a free OpenRouter API key (takes 2 min).\n\nMeanwhile, here's what's most relevant to you right now:\n\n`;
+      } else {
+        fallback = `💭 Couldn't reach the AI (${e.message}). Here's what I know directly:\n\n`;
+      }
+      if (recs.length) {
+        fallback += recs.map((r, i) => `${i+1}. ${r.icon} ${stripHtml(r.title)}\n   ${stripHtml(r.detail).slice(0, 140)}`).join('\n\n') + `\n\n`;
+      }
+      fallback += `Try asking about a specific quest, skill, or boss — I have detailed info on those 💕`;
+      const aiMsg = { role: 'assistant', content: fallback, ts: Date.now() };
+      messages.push(aiMsg);
+      save();
+      return aiMsg;
     }
-
-    // All endpoints failed — give a graceful answer, never mention "error"
-    const recs = Recommender.topRecommendations(stats, completedQuestIds).slice(0, 3);
-    let fallback = `I'm not totally sure on that specific question, but here's what's most relevant to you right now 💖\n\n`;
-    if (recs.length) {
-      fallback += recs.map((r, i) => `${i+1}. ${r.icon} ${stripHtml(r.title)}\n   ${stripHtml(r.detail).slice(0, 140)}`).join('\n\n') + `\n\n`;
-    }
-    fallback += `Try rephrasing or ask me about a specific quest, skill, boss, or "what gear should I wear?" — I have detailed info on those. ✨`;
-    const aiMsg = { role: 'assistant', content: fallback, ts: Date.now() };
-    messages.push(aiMsg);
-    save();
-    return aiMsg;
   }
 
+  // ---------- Config (provider + API key) ----------
+  function loadConfig() {
+    try { return JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}'); }
+    catch { return {}; }
+  }
+  function saveConfig(cfg) {
+    localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
+  }
+  function getProviders() { return PROVIDERS; }
+
   load();
-  return { all, send, clear };
+  return { all, send, clear, loadConfig, saveConfig, getProviders };
 })();

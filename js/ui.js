@@ -1308,6 +1308,85 @@ const UI = (() => {
     chatSend();
   }
 
+  // ---------- AI Settings popup ----------
+  function showAISettings() {
+    const providers = AIChat.getProviders();
+    const cfg = AIChat.loadConfig();
+    const current = cfg.provider || 'openrouter';
+    const html = `
+      <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
+        <div class="modal" style="max-width:560px;">
+          <h3>⚙️ AI Assistant Settings</h3>
+          <p style="color:var(--text-soft);font-size:13px;">
+            Plug in a free API key to unlock a real AI agent. <strong>Recommended: OpenRouter</strong> — free Llama models, no credit card needed. 💖
+          </p>
+          <div style="margin:14px 0;">
+            <label style="font-size:12px;font-weight:700;color:var(--text-soft);">PROVIDER</label>
+            <select id="ai-provider" onchange="UI.onProviderChange()" style="width:100%;padding:8px 12px;border-radius:10px;border:1px solid var(--card-border);font-family:var(--font-body);font-weight:600;margin-top:4px;">
+              ${Object.entries(providers).map(([id, p]) => `
+                <option value="${id}" ${id === current ? 'selected' : ''}>${esc(p.name)}</option>
+              `).join('')}
+            </select>
+          </div>
+          <div style="margin:14px 0;">
+            <label style="font-size:12px;font-weight:700;color:var(--text-soft);">API KEY <span id="ai-key-link" style="font-weight:500;">(<a href="${providers[current].signupUrl}" target="_blank" style="color:var(--pink-500);">get one free →</a>)</span></label>
+            <input type="password" id="ai-apikey" value="${esc(cfg.apiKey || '')}"
+              placeholder="sk-... or your-key-here"
+              style="width:100%;padding:8px 12px;border-radius:10px;border:1px solid var(--card-border);font-family:monospace;font-size:13px;margin-top:4px;">
+            <p style="font-size:11px;color:var(--text-faint);margin:4px 0 0;">Saved locally in your browser. Never sent anywhere except the provider you choose.</p>
+          </div>
+          <div style="margin:14px 0;">
+            <label style="font-size:12px;font-weight:700;color:var(--text-soft);">MODEL (optional override)</label>
+            <input type="text" id="ai-model" value="${esc(cfg.model || '')}"
+              placeholder="${esc(providers[current].defaultModel)}"
+              style="width:100%;padding:8px 12px;border-radius:10px;border:1px solid var(--card-border);font-family:monospace;font-size:13px;margin-top:4px;">
+            <p style="font-size:11px;color:var(--text-faint);margin:4px 0 0;">Leave blank to use the default. OpenRouter has many free models like <code>meta-llama/llama-3.2-3b-instruct:free</code> or <code>google/gemma-2-9b-it:free</code>.</p>
+          </div>
+          <div style="background:var(--pink-50);padding:10px 14px;border-radius:10px;font-size:12px;margin-top:10px;">
+            <strong>💡 Quick setup for OpenRouter (recommended):</strong><br>
+            1. Click "get one free →" above<br>
+            2. Sign up (Google login works)<br>
+            3. Create an API key, copy it<br>
+            4. Paste here, save<br>
+            5. Done! Free Llama models for life ✨
+          </div>
+          <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end;">
+            <button class="modal-close" style="margin:0;" onclick="this.closest('.modal-backdrop').remove()">Cancel</button>
+            <button class="btn" onclick="UI.saveAISettings()">💖 Save</button>
+          </div>
+        </div>
+      </div>
+    `;
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    document.body.appendChild(div.firstElementChild);
+  }
+
+  function onProviderChange() {
+    const providers = AIChat.getProviders();
+    const sel = document.getElementById('ai-provider').value;
+    const p = providers[sel];
+    const link = document.getElementById('ai-key-link');
+    if (link && p.signupUrl) {
+      link.innerHTML = `(<a href="${p.signupUrl}" target="_blank" style="color:var(--pink-500);">get one free →</a>)`;
+    } else if (link) {
+      link.innerHTML = '(not required)';
+    }
+    const model = document.getElementById('ai-model');
+    if (model) model.placeholder = p.defaultModel;
+  }
+
+  function saveAISettings() {
+    const cfg = {
+      provider: document.getElementById('ai-provider').value,
+      apiKey: document.getElementById('ai-apikey').value.trim(),
+      model: document.getElementById('ai-model').value.trim() || null,
+    };
+    AIChat.saveConfig(cfg);
+    document.querySelector('.modal-backdrop')?.remove();
+    toast('✨ AI settings saved! Try the chat now 💖');
+  }
+
   async function chatSend() {
     const input = document.getElementById('chat-input-floating');
     const btn = document.getElementById('chat-send-btn');
@@ -1423,5 +1502,6 @@ const UI = (() => {
            handleSearch, jumpToTab, showBored,
            aiSend, aiSuggest,
            toggleChatPanel, renderFloatingChat, chatSuggest, chatSend,
+           showAISettings, onProviderChange, saveAISettings,
            renderAllPublic: renderAll };
 })();
