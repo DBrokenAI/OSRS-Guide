@@ -132,8 +132,8 @@ const QUESTS = [
 
   { id: 'sleeping_giants', name: 'Sleeping Giants (miniquest)', members: true, length: 'Short',
     reqs: {}, practicalCombat: 1,
-    xpRewards: { smithing: 30000 },
-    rewards: ['Unlocks Giants\' Foundry (best Smithing XP)', '30K Smithing XP if done with bars'],
+    xpRewards: { smithing: 6000 },
+    rewards: ['Unlocks Giants\' Foundry (THE meta Smithing method)', '6,000 Smithing XP'],
     why: 'Unlocks one of the best Smithing methods. No combat.', priority: 2 },
 
   { id: 'children_of_the_sun', name: 'Children of the Sun', members: true, length: 'Short',
@@ -171,8 +171,9 @@ const QUESTS = [
     why: 'Free Mining start. Path it before mining anything.', priority: 2 },
 
   { id: 'goblin_diplomacy', name: 'Goblin Diplomacy', members: false, length: 'Short',
-    reqs: {}, rewards: ['200 XP in 3 chosen skills'],
-    why: 'Tiny but easy. Stack the XP into your weakest skills.', priority: 3 },
+    reqs: {}, xpRewards: { crafting: 200 },
+    rewards: ['200 Crafting XP'],
+    why: 'Tiny but easy.', priority: 3 },
 
   { id: 'dragon_slayer_1', name: 'Dragon Slayer I', members: false, length: 'Medium',
     reqs: { quests: ['restless_ghost'] }, practicalCombat: 45,
@@ -198,7 +199,9 @@ const QUESTS = [
     why: 'Two lvl-30 Temple Guard fights — safespottable. UNLOCKS Morytania: Canifis, Burgh de Rott, Mort Myre, Slayer Tower, Ectofuntus, dozens of other quests.', priority: 1 },
 
   { id: 'nature_spirit', name: 'Nature Spirit', members: true, length: 'Short',
-    reqs: { quests: ['priest_in_peril'] }, rewards: ['Druid pouch', '3,000 HP + 2,000 Crafting XP'],
+    reqs: { quests: ['priest_in_peril'] },
+    xpRewards: { crafting: 3000, defence: 2000, hitpoints: 2000 },
+    rewards: ['Druid pouch', '3,000 Crafting + 2,000 Defence + 2,000 HP XP'],
     why: 'Prereq for several Morytania quests including In Aid of the Myreque chain.', priority: 2 },
 
   { id: 'druidic_ritual', name: 'Druidic Ritual', members: true, length: 'Very short',
@@ -237,14 +240,14 @@ const QUESTS = [
 
   { id: 'grand_tree', name: 'The Grand Tree', members: true, length: 'Medium',
     reqs: {}, practicalCombat: 35,
-    xpRewards: { magic: 18400, agility: 12675, attack: 18400 },
-    rewards: ['18,400 Magic + 12,675 Agility + 18,400 Attack XP', 'More spirit tree access'],
+    xpRewards: { attack: 18400, agility: 7900, magic: 2150 },
+    rewards: ['18,400 Attack + 7,900 Agility + 2,150 Magic XP', 'More spirit tree access'],
     why: 'Required for Monkey Madness. Black Demon (lvl 100) is fully safespottable behind a pillar — doable at CB 35+ with ranged or magic.', priority: 1 },
 
   { id: 'monkey_madness_1', name: 'Monkey Madness I', members: true, length: 'Long',
     reqs: { skill: { attack: 60 }, quests: ['grand_tree', 'tree_gnome_village'] }, practicalCombat: 65,
-    xpRewards: { attack: 35000, defence: 35000 },
-    rewards: ['🗡️ Dragon Scimitar (best one-handed weapon until 70 Att Whip)', '35,000 Attack + Defence XP', 'Mage of Zamorak teleport'],
+    xpRewards: { attack: 35000, defence: 35000, strength: 20000, hitpoints: 20000 },
+    rewards: ['🗡️ Dragon Scimitar (best one-handed weapon until 70 Att Whip)', 'Selectable XP: 35K in 2 chosen combat skills + 20K in the other 2 (defaults: Att+Def main, Str+HP secondary)', 'Mage of Zamorak teleport'],
     why: 'DRAGON SCIM = single biggest combat upgrade until Abyssal Whip. Jungle Demon fight (lvl 195, hits 32s, multicombat) — bring 43+ Prayer + Protect from Magic. Wiki recommends combat 65.', priority: 1 },
 
   { id: 'lost_city', name: 'Lost City', members: true, length: 'Medium',
@@ -255,25 +258,27 @@ const QUESTS = [
   { id: 'animal_magnetism', name: 'Animal Magnetism', members: true, length: 'Medium',
     reqs: { skill: { slayer: 18, crafting: 19, ranged: 30, woodcutting: 35 },
             quests: ['priest_in_peril', 'restless_ghost', 'ernest_chicken'] }, practicalCombat: 25,
-    rewards: ["🏹 Ava's Attractor (40 ranged → upgrade to Accumulator at 50)", 'Saves 75% of ammo'],
+    xpRewards: { crafting: 1000, fletching: 1000, slayer: 1000, woodcutting: 2500 },
+    rewards: ["🏹 Ava's Attractor (40 ranged → upgrade to Accumulator at 50)", 'Saves 75% of ammo', '1K each Crafting/Fletching/Slayer + 2.5K Woodcutting'],
     why: 'Mandatory for ranged training — picks up your arrows for you.', priority: 1 },
 
   { id: 'mountain_daughter', name: 'Mountain Daughter', members: true, length: 'Medium',
     reqs: { skill: { agility: 20 } }, practicalCombat: 40,
-    xpRewards: { strength: 1000, attack: 1000, prayer: 1000 },
-    rewards: ['1,000 Strength + Attack XP', 'Prayer XP', 'Asgarnian Ice Dungeon shortcut'],
+    xpRewards: { prayer: 2000, attack: 1000 },
+    rewards: ['2,000 Prayer XP + 1,000 Attack XP', 'Asgarnian Ice Dungeon shortcut'],
     why: 'The Kendal (lvl 70) — safespottable with ranged. Wiki recommends combat 40.', priority: 3 },
 
   { id: 'horror_from_the_deep', name: 'Horror from the Deep', members: true, length: 'Medium',
     reqs: { skill: { agility: 35 } }, practicalCombat: 40,
-    xpRewards: { magic: 4662, defence: 4662 },
-    rewards: ['God books (+8 prayer when worn)', '4,662 Magic + Defence XP'],
+    xpRewards: { magic: 4662, strength: 4662, ranged: 4662 },
+    rewards: ['God books (+8 prayer when worn)', '4,662 each of Magic + Strength + Ranged XP'],
     why: 'God book = +8 prayer bonus. Dagannoth Mother fight (lvl 100) — change combat style based on her form.', priority: 2 },
 
   { id: 'heroes_quest', name: "Heroes' Quest", members: true, length: 'Long',
     reqs: { skill: { mining: 50, cooking: 53, fishing: 53, herblore: 25 }, quests: ['shield_of_arrav'] },
     practicalCombat: 50,
-    rewards: ['Access to Heroes Guild', 'Dragon battleaxe (str spec)'],
+    xpRewards: { attack: 3075, defence: 3075, strength: 3075, hitpoints: 3075, ranged: 2075, fishing: 2725, cooking: 2825, woodcutting: 1575, firemaking: 1575, smithing: 2275, mining: 2575, herblore: 1325 },
+    rewards: ['Access to Heroes Guild + Dragon battleaxe', 'Massive multi-skill XP package (combats + most gathering/production)'],
     why: 'Required for many later achievements + diary tasks. Ice Queen fight (lvl 102) — safespottable.', priority: 3 },
 
   // ----- RFD chain (Recipe for Disaster) -----
@@ -296,8 +301,8 @@ const QUESTS = [
   // ----- Money-flow quests -----
   { id: 'fairytale_1', name: "Fairytale I — Growing Pains", members: true, length: 'Medium',
     reqs: { quests: ['lost_city', 'nature_spirit'] },
-    xpRewards: { attack: 2000, farming: 2000, herblore: 2000 },
-    rewards: ['2,000 Attack + Farming + Herblore XP', 'Magic secateurs (+10% herb yield)'],
+    xpRewards: { farming: 3500, attack: 2000, magic: 1000 },
+    rewards: ['3,500 Farming + 2,000 Attack + 1,000 Magic XP', 'Magic secateurs (+10% herb yield)'],
     why: 'Magic secateurs = 10% more herbs forever. Big long-term GP.', priority: 2 },
 
   { id: 'fairytale_2', name: 'Fairytale II — Cure a Queen', members: true, length: 'Long',
@@ -307,15 +312,16 @@ const QUESTS = [
 
   { id: 'ghosts_ahoy', name: 'Ghosts Ahoy', members: true, length: 'Medium',
     reqs: { skill: { agility: 25, cooking: 20 }, quests: ['priest_in_peril'] },
-    rewards: ['Ectophial (teleport to Ectofuntus, 9 charges)'],
+    xpRewards: { prayer: 2400 },
+    rewards: ['Ectophial (teleport to Ectofuntus, 9 charges)', '2,400 Prayer XP'],
     why: 'Best early-game prayer training method (Ectofuntus = 4x XP per bone).', priority: 2 },
 
 
   { id: 'cabin_fever', name: 'Cabin Fever', members: true, length: 'Long',
     reqs: { skill: { agility: 42, crafting: 45, smithing: 50, ranged: 40 },
             quests: ['rum_deal', 'pirates_treasure'] },
-    xpRewards: { agility: 7000, smithing: 7000 },
-    rewards: ['7,000 Agility XP', '7,000 Smithing XP', 'Book O\' Piracy'],
+    xpRewards: { agility: 7000, smithing: 7000, crafting: 7000 },
+    rewards: ['7,000 Agility + 7,000 Smithing + 7,000 Crafting XP', 'Book O\' Piracy'],
     why: 'Big agility XP. Wait until you have the stats.', priority: 3 },
 
   { id: 'one_small_favour', name: 'One Small Favour', members: true, length: 'Long',
@@ -324,7 +330,9 @@ const QUESTS = [
     why: 'Two free 10K XP lamps for any skill ≥ 30. Save for slow skills like Slayer or Agility.', priority: 2 },
 
   { id: 'biohazard', name: 'Biohazard', members: true, length: 'Medium',
-    reqs: { quests: ['plague_city'] }, rewards: ['Required for RFD Lumby + many other quests'],
+    reqs: { quests: ['plague_city'] },
+    xpRewards: { thieving: 1250 },
+    rewards: ['1,250 Thieving XP', 'Required for RFD Lumby + many other quests'],
     why: 'Gating quest — get it out of the way.', priority: 3 },
 
   { id: 'plague_city', name: 'Plague City', members: true, length: 'Medium',
@@ -349,8 +357,8 @@ const QUESTS = [
 
   { id: 'tai_bwo', name: 'Tai Bwo Wannai Trio', members: true, length: 'Long',
     reqs: { skill: { agility: 15, cooking: 30, fishing: 5 } },
-    xpRewards: { cooking: 5000, fishing: 5000, attack: 5000 },
-    rewards: ['5,000 Cooking + Fishing + Attack XP', 'Karambwan access'],
+    xpRewards: { cooking: 5000, fishing: 5000, attack: 2500, strength: 2500 },
+    rewards: ['5,000 Cooking + 5,000 Fishing + 2,500 Attack + 2,500 Strength XP', 'Karambwan access'],
     why: 'Karambwans = best food/inv ratio. Pre-req for late-game PvM food.', priority: 2 },
 ];
 
