@@ -59,6 +59,7 @@
   document.getElementById('panic-btn').addEventListener('click', () => UI.showPanic());
   document.getElementById('bored-btn').addEventListener('click', () => UI.showBored());
   document.getElementById('global-search').addEventListener('input', () => UI.handleSearch());
+  document.getElementById('chat-fab').addEventListener('click', () => UI.toggleChatPanel());
 
   async function startForUser(username) {
     UI.toast(`✨ Fetching ${username}'s stats…`);

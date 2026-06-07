@@ -1258,6 +1258,91 @@ const UI = (() => {
     renderAI();
   }
 
+  // ============ FLOATING CHAT BUBBLE ============
+  function toggleChatPanel(open) {
+    const panel = document.getElementById('chat-panel');
+    const fab = document.getElementById('chat-fab');
+    if (!panel || !fab) return;
+    const wantOpen = open ?? (panel.style.display === 'none');
+    if (wantOpen) {
+      panel.style.display = 'flex';
+      fab.style.transform = 'scale(0.85)';
+      fab.innerHTML = '−';
+      renderFloatingChat();
+      setTimeout(() => document.getElementById('chat-input-floating')?.focus(), 100);
+    } else {
+      panel.style.display = 'none';
+      fab.style.transform = 'none';
+      fab.innerHTML = '💬';
+    }
+  }
+
+  function renderFloatingChat() {
+    const el = document.getElementById('chat-messages-floating');
+    if (!el) return;
+    const msgs = AIChat.all();
+    if (msgs.length === 0) {
+      el.innerHTML = `
+        <div style="text-align:center;color:var(--text-faint);padding:30px 8px;">
+          <div style="font-size:32px;">💬</div>
+          <p style="font-size:13px;margin:8px 0;">Hi! Ask me anything OSRS 💕</p>
+          <div style="display:flex;flex-direction:column;gap:4px;margin-top:10px;">
+            <button class="btn btn-soft" style="font-size:11px;padding:5px 10px;" onclick="UI.chatSuggest('What should I do next?')">What should I do next?</button>
+            <button class="btn btn-soft" style="font-size:11px;padding:5px 10px;" onclick="UI.chatSuggest('How do I make money at my level?')">How do I make money?</button>
+            <button class="btn btn-soft" style="font-size:11px;padding:5px 10px;" onclick="UI.chatSuggest('What gear should I wear?')">What gear should I wear?</button>
+          </div>
+        </div>
+      `;
+      return;
+    }
+    el.innerHTML = msgs.map(m => `
+      <div style="display:flex;justify-content:${m.role === 'user' ? 'flex-end' : 'flex-start'};margin-bottom:8px;">
+        <div style="max-width:80%;padding:8px 12px;border-radius:${m.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};background:${m.role === 'user' ? 'linear-gradient(135deg,var(--pink-500),var(--pink-400))' : 'white'};color:${m.role === 'user' ? 'white' : 'var(--text)'};font-size:13px;line-height:1.4;white-space:pre-wrap;word-wrap:break-word;box-shadow:0 1px 4px rgba(0,0,0,0.06);">${esc(m.content)}</div>
+      </div>
+    `).join('');
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function chatSuggest(text) {
+    document.getElementById('chat-input-floating').value = text;
+    chatSend();
+  }
+
+  async function chatSend() {
+    const input = document.getElementById('chat-input-floating');
+    const btn = document.getElementById('chat-send-btn');
+    const text = (input?.value || '').trim();
+    if (!text || !currentStats) return;
+    input.value = '';
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+
+    const el = document.getElementById('chat-messages-floating');
+    if (el) {
+      if (AIChat.all().length === 0) el.innerHTML = '';
+      el.insertAdjacentHTML('beforeend', `
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+          <div style="max-width:80%;padding:8px 12px;border-radius:14px 14px 4px 14px;background:linear-gradient(135deg,var(--pink-500),var(--pink-400));color:white;font-size:13px;line-height:1.4;white-space:pre-wrap;word-wrap:break-word;">${esc(text)}</div>
+        </div>
+      `);
+      el.insertAdjacentHTML('beforeend', `
+        <div id="chat-typing-floating" style="display:flex;justify-content:flex-start;margin-bottom:8px;">
+          <div style="padding:8px 12px;border-radius:14px 14px 14px 4px;background:white;color:var(--text-soft);font-size:13px;">
+            <span style="display:inline-block;animation:pulse 1.5s infinite;">💭 thinking…</span>
+          </div>
+        </div>
+      `);
+      el.scrollTop = el.scrollHeight;
+    }
+
+    const completed = completedSet();
+    await AIChat.send(text, currentStats, completed);
+
+    if (btn) { btn.disabled = false; btn.textContent = 'Send ✨'; }
+    renderFloatingChat();
+    // Also refresh the main AI tab if open
+    renderAI();
+  }
+
   // ============ GLOBAL SEARCH ============
   function globalSearch(q) {
     const results = [];
@@ -1337,5 +1422,6 @@ const UI = (() => {
            toggleDaily, addSkillGoal, addTaskGoal, toggleGoal, removeGoal,
            handleSearch, jumpToTab, showBored,
            aiSend, aiSuggest,
+           toggleChatPanel, renderFloatingChat, chatSuggest, chatSend,
            renderAllPublic: renderAll };
 })();

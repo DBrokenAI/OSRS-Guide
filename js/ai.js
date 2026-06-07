@@ -5,7 +5,12 @@
    ========================================================== */
 const AIChat = (() => {
   const KEY = 'bvels10_chat_v1';
-  const ENDPOINT = 'https://text.pollinations.ai/openai';
+  // Try multiple endpoints/models — fall through on rate limit
+  const ENDPOINTS = [
+    { url: 'https://text.pollinations.ai/openai',  model: 'openai',      method: 'POST' },
+    { url: 'https://text.pollinations.ai/openai',  model: 'mistral',     method: 'POST' },
+    { url: 'https://text.pollinations.ai/openai',  model: 'llama',       method: 'POST' },
+  ];
   const MAX_HISTORY = 50; // keep last 50 messages
 
   let messages = []; // [{ role:'user'|'assistant', content, ts }]
@@ -56,33 +61,59 @@ INSTRUCTIONS:
     save();
 
     const sysPrompt = buildSystemPrompt(stats, completedQuestIds);
-    // Build payload: system + last ~12 turns
     const recent = messages.slice(-12).map(m => ({ role: m.role, content: m.content }));
-    const payload = {
-      model: 'openai',
-      messages: [{ role: 'system', content: sysPrompt }, ...recent],
-      stream: false,
-    };
+    const fullMessages = [{ role: 'system', content: sysPrompt }, ...recent];
 
-    try {
-      const r = await fetch(ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!r.ok) throw new Error('LLM returned ' + r.status);
-      const data = await r.json();
-      const content = data?.choices?.[0]?.message?.content || '(no response)';
-      const aiMsg = { role: 'assistant', content, ts: Date.now() };
-      messages.push(aiMsg);
-      save();
-      return aiMsg;
-    } catch (e) {
-      const errMsg = { role: 'assistant', content: `💔 Couldn't reach the AI right now. (${e.message}) Try again in a moment, or ask me directly.`, ts: Date.now(), error: true };
-      messages.push(errMsg);
-      save();
-      return errMsg;
+    // Try each endpoint/model with one retry each
+    let lastErr = null;
+    for (const ep of ENDPOINTS) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const r = await fetch(ep.url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: ep.model,
+              messages: fullMessages,
+              stream: false,
+              referrer: 'bvels10-osrs-guide',
+            }),
+          });
+          if (r.status === 429) {
+            // Rate limited — wait and retry on next attempt
+            await new Promise(res => setTimeout(res, 1500 * (attempt + 1)));
+            lastErr = new Error('rate limited');
+            continue;
+          }
+          if (!r.ok) {
+            lastErr = new Error('LLM returned ' + r.status);
+            break; // try next endpoint
+          }
+          const data = await r.json();
+          const content = data?.choices?.[0]?.message?.content
+                       || data?.content
+                       || '(empty response)';
+          const aiMsg = { role: 'assistant', content, ts: Date.now() };
+          messages.push(aiMsg);
+          save();
+          return aiMsg;
+        } catch (e) {
+          lastErr = e;
+        }
+      }
     }
+
+    // All endpoints failed
+    const errMsg = {
+      role: 'assistant',
+      content: `💔 Free AI is overloaded right now (${lastErr?.message || 'no response'}).\n\n` +
+               `Try again in 30 seconds. In the meantime — check the Next Up tab, your live recommendations are personalized to your stats too. 💕`,
+      ts: Date.now(),
+      error: true,
+    };
+    messages.push(errMsg);
+    save();
+    return errMsg;
   }
 
   load();
