@@ -1,7 +1,7 @@
 /* ==========================================================
    Service worker — basic offline cache for the guide.
    ========================================================== */
-const CACHE = 'osrs-guide-v1';
+const CACHE = 'osrs-guide-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -16,6 +16,7 @@ const ASSETS = [
   './js/journal.js',
   './js/dailies.js',
   './js/goals.js',
+  './js/ai.js',
   './js/confetti.js',
   './js/ui.js',
   './js/app.js',
@@ -38,7 +39,7 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const u = new URL(e.request.url);
   // never cache hiscores / API calls
-  if (u.host.includes('runescape') || u.host.includes('wiseoldman') || u.pathname.includes('/api/')) return;
+  if (u.host.includes('runescape') || u.host.includes('wiseoldman') || u.host.includes('pollinations') || u.pathname.includes('/api/')) return;
   e.respondWith(
     caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
       if (e.request.method === 'GET' && resp.ok && u.origin === location.origin) {

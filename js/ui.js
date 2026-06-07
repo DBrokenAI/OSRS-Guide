@@ -73,6 +73,7 @@ const UI = (() => {
     renderSlayer();
     renderLoadouts();
     renderDiariesTab();
+    renderAI();
   }
 
   // ---------- helpers ----------
@@ -1153,6 +1154,110 @@ const UI = (() => {
     `;
   }
 
+  // ============ AI ASSISTANT ============
+  function renderAI() {
+    const el = sectionEl('ai');
+    const msgs = AIChat.all();
+    el.innerHTML = `
+      <h2>💬 Ask AI — Your OSRS Helper</h2>
+      <p style="color:var(--text-soft);">
+        Powered by free public LLM (Pollinations.ai). Ask anything — quests, gear, training paths, bossing. The AI sees your live stats. ✨
+      </p>
+
+      <div id="ai-messages" style="background:var(--card-bg-strong);border:1px solid var(--card-border);border-radius:var(--radius);padding:14px;max-height:55vh;overflow-y:auto;box-shadow:var(--shadow-soft);min-height:240px;">
+        ${msgs.length === 0 ? `
+          <div style="text-align:center;color:var(--text-faint);padding:30px 0;">
+            <div style="font-size:48px;">💬</div>
+            <p>Ask me anything! Try:</p>
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:center;margin-top:10px;">
+              <button class="btn btn-soft" style="font-size:12px;padding:6px 14px;" onclick="UI.aiSuggest('What should I do next?')">What should I do next?</button>
+              <button class="btn btn-soft" style="font-size:12px;padding:6px 14px;" onclick="UI.aiSuggest('How do I do Waterfall Quest?')">How do I do Waterfall Quest?</button>
+              <button class="btn btn-soft" style="font-size:12px;padding:6px 14px;" onclick="UI.aiSuggest('What gear should I be wearing right now?')">What gear should I be wearing right now?</button>
+              <button class="btn btn-soft" style="font-size:12px;padding:6px 14px;" onclick="UI.aiSuggest('How do I make money at my level?')">How do I make money at my level?</button>
+            </div>
+          </div>
+        ` : msgs.map(m => aiBubble(m)).join('')}
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <input id="ai-input" placeholder="Ask anything about OSRS… 💕" autocomplete="off"
+          style="flex:1;padding:12px 18px;border-radius:999px;border:1px solid var(--card-border);background:white;font-family:var(--font-body);font-size:14px;outline:none;"
+          onkeydown="if(event.key==='Enter'){UI.aiSend();}">
+        <button class="btn" id="ai-send-btn" onclick="UI.aiSend()">Send ✨</button>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:11px;color:var(--text-faint);">
+        <span>💕 Conversations save locally per browser. AI may be wrong — always sanity-check.</span>
+        ${msgs.length ? `<button class="btn btn-soft" style="font-size:11px;padding:4px 10px;" onclick="if(confirm('Clear chat?')){AIChat.clear();UI.renderAllPublic();}">Clear chat</button>` : ''}
+      </div>
+    `;
+
+    // Scroll to bottom
+    setTimeout(() => {
+      const el = document.getElementById('ai-messages');
+      if (el) el.scrollTop = el.scrollHeight;
+    }, 50);
+  }
+
+  function aiBubble(m) {
+    const isUser = m.role === 'user';
+    return `
+      <div style="display:flex;justify-content:${isUser ? 'flex-end' : 'flex-start'};margin-bottom:10px;">
+        <div style="
+          max-width:75%;
+          padding:10px 14px;
+          border-radius:${isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px'};
+          background:${isUser ? 'linear-gradient(135deg,var(--pink-500),var(--pink-400))' : 'var(--pink-50)'};
+          color:${isUser ? 'white' : 'var(--text)'};
+          font-size:14px;
+          line-height:1.5;
+          white-space:pre-wrap;
+          word-wrap:break-word;
+          box-shadow:0 2px 6px rgba(232,56,138,0.1);
+        ">${esc(m.content)}</div>
+      </div>
+    `;
+  }
+
+  function aiSuggest(text) {
+    const input = document.getElementById('ai-input');
+    if (input) input.value = text;
+    aiSend();
+  }
+
+  async function aiSend() {
+    const input = document.getElementById('ai-input');
+    const btn = document.getElementById('ai-send-btn');
+    const text = (input?.value || '').trim();
+    if (!text || !currentStats) return;
+    input.value = '';
+    btn.disabled = true;
+    btn.textContent = '…';
+
+    // Optimistic render: show user message + typing indicator
+    const msgsEl = document.getElementById('ai-messages');
+    if (msgsEl) {
+      // Clear placeholder if first message
+      if (AIChat.all().length === 0) msgsEl.innerHTML = '';
+      msgsEl.insertAdjacentHTML('beforeend', aiBubble({ role: 'user', content: text }));
+      msgsEl.insertAdjacentHTML('beforeend', `
+        <div id="ai-typing" style="display:flex;justify-content:flex-start;margin-bottom:10px;">
+          <div style="padding:10px 14px;border-radius:16px 16px 16px 4px;background:var(--pink-50);color:var(--text-soft);font-size:14px;">
+            <span style="display:inline-block;animation:pulse 1.5s infinite;">💭 thinking…</span>
+          </div>
+        </div>
+      `);
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+    }
+
+    const completed = completedSet();
+    await AIChat.send(text, currentStats, completed);
+
+    btn.disabled = false;
+    btn.textContent = 'Send ✨';
+    renderAI();
+  }
+
   // ============ GLOBAL SEARCH ============
   function globalSearch(q) {
     const results = [];
@@ -1231,5 +1336,6 @@ const UI = (() => {
            markRecDone, resetCompletedRecs,
            toggleDaily, addSkillGoal, addTaskGoal, toggleGoal, removeGoal,
            handleSearch, jumpToTab, showBored,
+           aiSend, aiSuggest,
            renderAllPublic: renderAll };
 })();
