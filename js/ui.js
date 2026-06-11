@@ -34,11 +34,26 @@ const UI = (() => {
     const streak = DailyChecklist.getStreak();
     document.getElementById('streak-pill').textContent = `🔥 ${streak.count} day${streak.count === 1 ? '' : 's'} streak`;
 
-    const minsAgo = currentStats.fetchedAt ? Math.round((Date.now() - currentStats.fetchedAt) / 60000) : null;
-    document.getElementById('last-update').textContent =
-      minsAgo == null ? 'updating…' :
-      minsAgo === 0 ? 'just updated 💕' :
-      `updated ${minsAgo}m ago`;
+    const lastUpd = document.getElementById('last-update');
+    if (Hiscores.hasManual()) {
+      // Authoritative manual mode — levels are exactly what you typed / told the AI.
+      lastUpd.innerHTML = '📝 manual stats · <span style="text-decoration:underline;cursor:pointer;" ' +
+        'onclick="UI.resumeLiveSync()" title="Switch back to live Hiscores sync">resume live sync</span>';
+      lastUpd.classList.remove('subtle');
+    } else {
+      const minsAgo = currentStats.fetchedAt ? Math.round((Date.now() - currentStats.fetchedAt) / 60000) : null;
+      lastUpd.textContent =
+        minsAgo == null ? 'updating…' :
+        minsAgo === 0 ? 'just updated 💕' :
+        `updated ${minsAgo}m ago`;
+    }
+  }
+
+  function resumeLiveSync() {
+    if (!confirm('Switch back to live Hiscores sync? Your typed/AI-set levels will be replaced by what the Hiscores report.')) return;
+    Hiscores.clearManual();
+    toast('🔄 Resuming live Hiscores sync 💕');
+    if (window.AppBoot) window.AppBoot.refetch();
   }
 
   // ---------- Sections ----------
@@ -226,7 +241,7 @@ const UI = (() => {
     set.add(key);
     saveCompletedRecs(set);
 
-    let xpCreditMsg = '';
+    let xpInfoMsg = '';
 
     // If it's a quest, also write to the bulk quest store so all views agree
     if (type === 'quest' && id) {
@@ -234,27 +249,23 @@ const UI = (() => {
       qSet.add(id);
       saveCompletedQuests(qSet);
 
-      // Credit the quest's XP rewards locally
+      // Show the quest's XP rewards as INFO only — we no longer auto-add it to
+      // your levels (that caused inflated levels). Update your level explicitly
+      // if a quest pushed you up: e.g. tell the AI "set magic to 6".
       const quest = QUESTS.find(q => q.id === id);
       if (quest?.xpRewards) {
-        PendingXp.add(quest.xpRewards);
         const lines = Object.entries(quest.xpRewards).map(([sid, xp]) => {
           const m = SKILL_META.find(mm => mm.id === sid);
           return `${m?.icon || ''} +${xp.toLocaleString()} ${m?.name || sid}`;
         });
-        xpCreditMsg = '<br>' + lines.join('<br>');
-        Journal.add('xp', `💖 Quest XP credited: ${lines.join(', ')}`, true);
-
-        // Re-apply pending so stats refresh immediately
-        if (Hiscores.lastStats) {
-          currentStats = PendingXp.apply(Hiscores.lastStats);
-        }
+        xpInfoMsg = `<br><span style="opacity:.85;font-size:12px;">In-game reward: ${lines.join(' · ')}</span>`;
+        Journal.add('quest', `📜 Completed: ${title} (${lines.join(', ')})`, true);
       }
     }
 
     Journal.add('done', `✅ Marked done: ${title}`, false);
     renderAll();
-    toast(`✨ Marked done!${xpCreditMsg}`);
+    toast(`✨ Marked done!${xpInfoMsg}`);
   }
 
   function resetCompletedRecs() {
@@ -427,6 +438,88 @@ const UI = (() => {
     saveCompletedQuests(set);
     Journal.add('quest', `📜 Completed quest: ${name}`, true);
     renderQuests(); renderNext(); renderTasks();
+  }
+
+  // ============ AI / COMMAND ACTIONS ============
+  // Resolve a free-text quest/task name → { kind, id, name } or null
+  function resolveCompletable(name) {
+    if (!name) return null;
+    const norm = s => String(s).toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
+    const n = norm(name);
+    if (!n) return null;
+    const tasks = (typeof MASTER_TASKS !== 'undefined') ? MASTER_TASKS : [];
+    // exact name
+    let q = QUESTS.find(x => norm(x.name) === n);  if (q) return { kind:'quest', id:q.id, name:q.name };
+    let t = tasks.find(x => norm(x.name) === n);    if (t) return { kind:'task',  id:t.id, name:t.name };
+    // includes (need a reasonably specific query)
+    if (n.length >= 4) {
+      q = QUESTS.find(x => norm(x.name).includes(n));  if (q) return { kind:'quest', id:q.id, name:q.name };
+      t = tasks.find(x => norm(x.name).includes(n));   if (t) return { kind:'task',  id:t.id, name:t.name };
+      // query contains the item name (e.g. "i finished the cooks assistant quest")
+      q = QUESTS.find(x => n.includes(norm(x.name)));  if (q) return { kind:'quest', id:q.id, name:q.name };
+      t = tasks.find(x => n.includes(norm(x.name)));   if (t) return { kind:'task',  id:t.id, name:t.name };
+    }
+    // id slug
+    const slug = n.replace(/\s+/g, '_');
+    q = QUESTS.find(x => x.id === slug || x.id.includes(slug));
+    if (q) return { kind:'quest', id:q.id, name:q.name };
+    return null;
+  }
+
+  // Execute ONE structured action. Returns a confirmation string or null.
+  // Mutates currentStats / stores but does NOT re-render (applyActions batches that).
+  function applyAction(a) {
+    if (!a || !a.type) return null;
+    try {
+      switch (a.type) {
+        case 'setLevel': {
+          const sid = SKILL_META.find(m => m.id === a.skill)?.id;
+          const lvl = Math.max(1, Math.min(99, parseInt(a.level)));
+          if (!sid || !lvl) return null;
+          const loaded = Hiscores.setManualLevel(currentStats, sid, lvl);
+          if (!loaded) return null;
+          currentStats = PendingXp.apply(loaded);
+          const m = SKILL_META.find(mm => mm.id === sid);
+          Journal.add('xp', `✏️ Set ${m.name} to ${lvl}`, false);
+          return `${m.icon} ${m.name} → ${lvl}`;
+        }
+        case 'setXp': {
+          const sid = SKILL_META.find(m => m.id === a.skill)?.id;
+          if (!sid) return null;
+          const loaded = Hiscores.setManualXp(currentStats, sid, a.xp);
+          if (!loaded) return null;
+          currentStats = PendingXp.apply(loaded);
+          const m = SKILL_META.find(mm => mm.id === sid);
+          return `${m.icon} ${m.name} → ${currentStats.skills[sid].level} (${Number(a.xp).toLocaleString()} xp)`;
+        }
+        case 'markQuest':
+        case 'markTask': {
+          const target = a.id
+            ? { kind: a.type === 'markTask' ? 'task' : 'quest', id: a.id, name: a.name || a.id }
+            : resolveCompletable(a.name);
+          if (!target) return null;
+          const set = loadCompletedQuests();
+          const done = a.done !== false;
+          if (done) set.add(target.id); else set.delete(target.id);
+          saveCompletedQuests(set);
+          Journal.add('quest', `${done ? '📜 Completed' : '↩️ Un-marked'}: ${target.name}`, done);
+          return `${done ? '✅' : '↩️'} ${target.name} ${done ? 'marked done' : 'un-marked'}`;
+        }
+        case 'fixData':
+          return (typeof UserOverrides !== 'undefined') ? UserOverrides.applyFix(a) : null;
+        default:
+          return null;
+      }
+    } catch (e) { console.warn('applyAction failed', a, e); return null; }
+  }
+
+  // Execute a batch, re-render once, return confirmation strings.
+  function applyActions(actions) {
+    if (!Array.isArray(actions) || !actions.length) return [];
+    const confirms = [];
+    for (const a of actions) { const c = applyAction(a); if (c) confirms.push(c); }
+    if (confirms.length) renderAll();
+    return confirms;
   }
 
   function formatReqs(reqs) {
@@ -1251,7 +1344,7 @@ const UI = (() => {
     }
 
     const completed = completedSet();
-    await AIChat.send(text, currentStats, completed);
+    await AIChat.send(text, currentStats, completed, applyActions);
 
     btn.disabled = false;
     btn.textContent = 'Send ✨';
@@ -1496,7 +1589,7 @@ const UI = (() => {
     }
 
     const completed = completedSet();
-    await AIChat.send(text, currentStats, completed);
+    await AIChat.send(text, currentStats, completed, applyActions);
 
     if (btn) { btn.disabled = false; btn.textContent = 'Send ✨'; }
     renderFloatingChat();
@@ -1585,5 +1678,7 @@ const UI = (() => {
            aiSend, aiSuggest,
            toggleChatPanel, renderFloatingChat, chatSuggest, chatSend,
            showAISettings, onProviderChange, saveAISettings,
+           applyAction, applyActions, resolveCompletable,
+           resumeLiveSync,
            renderAllPublic: renderAll };
 })();

@@ -171,6 +171,46 @@ const Hiscores = (() => {
   function clearManual() { localStorage.removeItem(MANUAL_KEY); }
   function hasManual()   { return !!localStorage.getItem(MANUAL_KEY); }
 
+  // Raw stored manual object ({ name, attack:{level,xp}, ... }) or null
+  function loadManualRaw() {
+    try { return JSON.parse(localStorage.getItem(MANUAL_KEY) || 'null'); }
+    catch { return null; }
+  }
+
+  // Build a raw manual snapshot from a live/current stats object so editing one
+  // skill doesn't lose the others. Preserves XP where known.
+  function snapshotToManual(stats) {
+    const out = { name: stats?.name || 'You' };
+    for (const meta of SKILL_META) {
+      const sk = (stats?.skills && stats.skills[meta.id]) || {};
+      const lvl = Math.max(1, Math.min(99, sk.level || 1));
+      out[meta.id] = { level: lvl, xp: sk.xp != null ? sk.xp : xpForLevel(lvl) };
+    }
+    return out;
+  }
+
+  // Set ONE skill's level. Switches to authoritative manual mode (seeding from
+  // the current stats so nothing else changes). XP is set to the level's floor
+  // since the user told us a level, not an exact XP. Returns loaded manual stats.
+  function setManualLevel(currentStats, skillId, level) {
+    if (!SKILL_META.some(m => m.id === skillId)) return null;
+    const base = loadManualRaw() || snapshotToManual(currentStats);
+    const lvl = Math.max(1, Math.min(99, parseInt(level) || 1));
+    base[skillId] = { level: lvl, xp: xpForLevel(lvl) };
+    saveManual(base);
+    return loadManual();
+  }
+
+  // Set an exact XP value for one skill (level derived from it).
+  function setManualXp(currentStats, skillId, xp) {
+    if (!SKILL_META.some(m => m.id === skillId)) return null;
+    const base = loadManualRaw() || snapshotToManual(currentStats);
+    const x = Math.max(0, Math.min(200000000, parseInt(xp) || 0));
+    base[skillId] = { level: levelFromXp(x), xp: x };
+    saveManual(base);
+    return loadManual();
+  }
+
   // ---------- polling ----------
   let pollTimer = null;
   let pollListeners = [];
@@ -232,5 +272,6 @@ const Hiscores = (() => {
 
   return { fetchStats, startPolling, stopPolling, pollOnce: () => pollOnce(),
            saveManual, loadManual, clearManual, hasManual,
+           loadManualRaw, snapshotToManual, setManualLevel, setManualXp,
            get lastStats() { return lastStats; } };
 })();

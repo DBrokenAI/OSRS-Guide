@@ -114,7 +114,129 @@ INSTRUCTIONS:
 - If she asks about a quest/boss/item, give: requirements, location, and a 1-line tip.
 - If she asks "what should I do next?" — pick ONE thing based on her stats and explain why.
 - Don't bombard her with options. Beginner-friendly tone.
-- Format with short paragraphs and bullet points; don't write walls of text.`;
+- Format with short paragraphs and bullet points; don't write walls of text.
+
+ACTIONS — YOU CAN EDIT THE PAGE:
+When she tells you something that should change her saved data, DO IT by adding a
+fenced code block at the very end of your reply, tagged osrs-actions, containing a
+JSON array. The app executes it and updates every tab. Supported actions:
+- {"type":"setLevel","skill":"prayer","level":43}        // she leveled up / corrected a level
+- {"type":"markQuest","name":"Witch's House","done":true} // she finished (or "done":false to undo) a quest
+- {"type":"markTask","name":"Stronghold of Security","done":true} // a non-quest milestone/task
+- {"type":"fixData","target":"questXp","quest":"Witch's Potion","skill":"magic","xp":325} // correct wrong data
+- {"type":"fixData","target":"questReq","quest":"Dragon Slayer","skill":"crafting","level":8}
+Rules: only emit actions she clearly asked for. Use real OSRS skill ids (attack, strength,
+defence, hitpoints, ranged, prayer, magic, cooking, woodcutting, fletching, fishing,
+firemaking, crafting, smithing, mining, herblore, agility, thieving, slayer, farming,
+runecraft, hunter, construction). Confirm what you changed in plain words BEFORE the block.
+Example reply: "Nice, grats on 43 Prayer! 🎉 Protect prayers unlocked.\n\`\`\`osrs-actions\n[{"type":"setLevel","skill":"prayer","level":43}]\n\`\`\`"`;
+  }
+
+  // ---------- Skill-word matching for the local command parser ----------
+  const SKILL_ALIASES = {
+    rc: 'runecraft', runecrafting: 'runecraft', wc: 'woodcutting', wcing: 'woodcutting',
+    hp: 'hitpoints', hitpoint: 'hitpoints', con: 'construction', cons: 'construction',
+    att: 'attack', atk: 'attack', str: 'strength', def: 'defence', defense: 'defence',
+    range: 'ranged', rng: 'ranged', mage: 'magic', fm: 'firemaking', fish: 'fishing',
+    cook: 'cooking', mine: 'mining', smith: 'smithing', craft: 'crafting', fletch: 'fletching',
+    farm: 'farming', slay: 'slayer', agil: 'agility', thiev: 'thieving', thieve: 'thieving',
+    hunt: 'hunter', herb: 'herblore', pray: 'prayer', wood: 'woodcutting',
+  };
+  function skillTokens() {
+    const set = new Set();
+    for (const m of SKILL_META) { set.add(m.id); set.add(m.name.toLowerCase()); }
+    for (const a of Object.keys(SKILL_ALIASES)) set.add(a);
+    // longest first so "runecrafting" wins over "runecraft", etc.
+    return [...set].sort((a, b) => b.length - a.length);
+  }
+  function resolveSkillWord(w) {
+    if (!w) return null;
+    const n = w.toLowerCase();
+    const meta = SKILL_META.find(m => m.id === n || m.name.toLowerCase() === n);
+    if (meta) return meta.id;
+    return SKILL_ALIASES[n] || null;
+  }
+
+  // ---------- LOCAL COMMAND PARSER (instant, no API key needed) ----------
+  // Detects "set X to N", "I'm N prayer", "finished Witch's House", "unmark X", etc.
+  // Returns { actions:[...] } or null. Resolution of names happens in UI.applyAction.
+  function parseLocalActions(text) {
+    const raw = (text || '').trim();
+    if (!raw) return null;
+    const q = raw.toLowerCase();
+
+    // Don't treat questions as commands ("how do I get mining to 40" must NOT set
+    // mining to 40) — unless there's an explicit setter verb ("can you set …").
+    const hasSetter = /\b(set|change|update|put|bump|mark|unmark|finished|finish|complete|completed|undo|reset|leveled|levelled|dinged)\b/.test(q);
+    const isQuestion = /^(how|what|where|why|which|when|should|could|would|do |does|is\b|are\b|tell me|any )/.test(q) || /\?\s*$/.test(raw);
+    if (isQuestion && !hasSetter) return null;
+
+    const actions = [];
+    const seenSkill = new Set();
+
+    const SK = '(' + skillTokens().map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')';
+
+    function pushLevel(skillWord, lvlStr) {
+      const sid = resolveSkillWord(skillWord);
+      const lvl = parseInt(lvlStr);
+      if (!sid || !lvl || lvl < 1 || lvl > 99 || seenSkill.has(sid)) return;
+      seenSkill.add(sid);
+      actions.push({ type: 'setLevel', skill: sid, level: lvl });
+    }
+
+    // "set/change/update/put/make [my] SKILL [to/at/=] N"
+    let re = new RegExp(`\\b(?:set|change|update|put|make|bump)\\s+(?:my\\s+)?${SK}\\s+(?:to|at|=|level|lvl)?\\s*(\\d{1,2})\\b`, 'gi');
+    for (const m of raw.matchAll(re)) pushLevel(m[1], m[2]);
+
+    // "SKILL (is|=|:|now|to|at|lvl|level) N"  e.g. "magic is now 6", "prayer = 43"
+    re = new RegExp(`\\b${SK}\\s+(?:is\\s+now|is|=|:|now|to|at|lvl|level)\\s*(\\d{1,2})\\b`, 'gi');
+    for (const m of raw.matchAll(re)) pushLevel(m[1], m[2]);
+
+    // "N SKILL" with a level-context verb in the sentence ("im 43 prayer", "hit 60 attack")
+    if (/\b(?:i'?m|im|i am|just|hit|reached|got|now|dinged|leveled|levelled|ding)\b/.test(q)) {
+      re = new RegExp(`\\b(\\d{1,2})\\s+${SK}\\b`, 'gi');
+      for (const m of raw.matchAll(re)) pushLevel(m[2], m[1]);
+    }
+    // "[i'm|my] SKILL N"  e.g. "im prayer 43", "my mining 30"
+    re = new RegExp(`\\b(?:i'?m|im|i am|my)\\s+${SK}\\s+(\\d{1,2})\\b`, 'gi');
+    for (const m of raw.matchAll(re)) pushLevel(m[1], m[2]);
+
+    // ----- Quest / task completion -----
+    function pushComplete(name, done) {
+      const cleaned = (name || '').replace(/[.!?]+$/, '').replace(/\b(quest|the quest|now|already|today|finally)\b/gi, '').trim();
+      if (cleaned.length < 3) return;
+      actions.push({ type: 'markQuest', name: cleaned, done });
+    }
+    // exclude questions ("how do i do X")
+    if (!/^(how|what|where|why|which|when|should|can|could|would|does|is\b)/.test(q) && !/^did i\b/.test(q)) {
+      let mm = raw.match(/\b(?:i\s+)?(?:just\s+)?(?:finished|completed|complete|did|beat|cleared|done with|wrapped up)\s+(.+)/i);
+      if (mm) pushComplete(mm[1], true);
+    }
+    let mm = raw.match(/\bmark\s+(.+?)\s+(?:as\s+)?(?:done|complete|completed|finished)\b/i);
+    if (mm) pushComplete(mm[1], true);
+    mm = raw.match(/\b(?:unmark|un-mark|undo|reset|remove)\s+(.+)/i);
+    if (mm) pushComplete(mm[1], false);
+    mm = raw.match(/\bi\s+(?:haven'?t|have not|didn'?t|did not|never)\s+(?:done|do|finish|finished|complete|completed)\s+(.+)/i);
+    if (mm) pushComplete(mm[1], false);
+
+    return actions.length ? { actions } : null;
+  }
+
+  // Pull an osrs-actions / json action block out of an LLM reply.
+  // Returns { actions:[...], content:'reply without the block' }.
+  function extractActionBlock(content) {
+    if (!content) return { actions: [], content };
+    const re = /```(?:osrs-actions|json)?\s*(\[[\s\S]*?\]|\{[\s\S]*?\})\s*```/i;
+    const m = content.match(re);
+    if (!m) return { actions: [], content };
+    let parsed = null;
+    try { parsed = JSON.parse(m[1]); } catch { return { actions: [], content }; }
+    const actions = Array.isArray(parsed) ? parsed : (parsed.actions || []);
+    if (!Array.isArray(actions) || !actions.length) return { actions: [], content };
+    // basic shape check
+    const valid = actions.filter(a => a && typeof a.type === 'string');
+    const stripped = content.replace(m[0], '').trim();
+    return { actions: valid, content: stripped || content.replace(m[0], '').trim() };
   }
 
   // ---------- LOCAL KNOWLEDGE-BASE answers (instant, no rate limit) ----------
@@ -236,11 +358,32 @@ INSTRUCTIONS:
     return (s || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
   }
 
-  async function send(userText, stats, completedQuestIds) {
+  function actionReply(confirms) {
+    if (!confirms.length) {
+      return `I think you wanted me to update something, but I couldn't match it. ` +
+             `Try the exact name, e.g. "set magic to 6", "I finished Cook's Assistant", or "unmark Dragon Slayer" 💕`;
+    }
+    return `Done! ✨\n` + confirms.map(c => `• ${c}`).join('\n') +
+           `\n\nEverything on the page just updated to match. 💖`;
+  }
+
+  // executor: (actions[]) => string[] confirmations  (provided by the UI layer)
+  async function send(userText, stats, completedQuestIds, executor) {
     if (!userText || !userText.trim()) return null;
     const userMsg = { role: 'user', content: userText.trim(), ts: Date.now() };
     messages.push(userMsg);
     save();
+
+    // 0. Local COMMAND parser (instant, no API): set levels, mark quests/tasks.
+    const cmd = parseLocalActions(userText);
+    if (cmd) {
+      const confirms = executor ? (executor(cmd.actions) || []) : [];
+      const aiMsg = { role: 'assistant', content: actionReply(confirms), ts: Date.now(),
+                      source: 'local', actions: cmd.actions, applied: confirms.length > 0 };
+      messages.push(aiMsg);
+      save();
+      return aiMsg;
+    }
 
     // 1. Try local knowledge base first (instant, no API)
     const local = localAnswer(userText, stats, completedQuestIds);
@@ -291,10 +434,18 @@ INSTRUCTIONS:
         throw new Error(`LLM ${r.status}: ${txt.slice(0, 100)}`);
       }
       const data = await r.json();
-      const content = data?.choices?.[0]?.message?.content
+      let content = data?.choices?.[0]?.message?.content
                    || data?.content?.[0]?.text
                    || '(empty response)';
-      const aiMsg = { role: 'assistant', content, ts: Date.now() };
+      // Execute any action block the model emitted, then strip it from the text.
+      const { actions, content: cleaned } = extractActionBlock(content);
+      content = cleaned;
+      let applied = [];
+      if (actions.length && executor) {
+        applied = executor(actions) || [];
+        if (applied.length) content += `\n\n✅ ${applied.join(' · ')}`;
+      }
+      const aiMsg = { role: 'assistant', content, ts: Date.now(), actions, applied: applied.length > 0 };
       messages.push(aiMsg);
       save();
       return aiMsg;
