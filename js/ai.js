@@ -14,6 +14,7 @@ const AIChat = (() => {
       name: '⚡ Groq (RECOMMENDED — free, fast, no rate-limit pain)',
       url: 'https://api.groq.com/openai/v1/chat/completions',
       defaultModel: 'llama-3.3-70b-versatile',
+      visionModel: 'meta-llama/llama-4-scout-17b-16e-instruct', // free, reads screenshots
       signupUrl: 'https://console.groq.com/keys',
       headers: (key) => ({
         'Authorization': `Bearer ${key}`,
@@ -24,6 +25,7 @@ const AIChat = (() => {
       name: '🚀 Cerebras (free, very fast)',
       url: 'https://api.cerebras.ai/v1/chat/completions',
       defaultModel: 'llama-3.3-70b',
+      visionModel: null, // no vision support
       signupUrl: 'https://cloud.cerebras.ai/?redirect=/platform/api-keys',
       headers: (key) => ({
         'Authorization': `Bearer ${key}`,
@@ -34,6 +36,7 @@ const AIChat = (() => {
       name: 'OpenRouter (free models heavily rate-limited)',
       url: 'https://openrouter.ai/api/v1/chat/completions',
       defaultModel: 'meta-llama/llama-3.2-3b-instruct:free',
+      visionModel: 'meta-llama/llama-4-scout:free',
       signupUrl: 'https://openrouter.ai/keys',
       headers: (key) => ({
         'Authorization': `Bearer ${key}`,
@@ -46,6 +49,7 @@ const AIChat = (() => {
       name: 'OpenAI',
       url: 'https://api.openai.com/v1/chat/completions',
       defaultModel: 'gpt-4o-mini',
+      visionModel: 'gpt-4o-mini', // vision-capable
       signupUrl: 'https://platform.openai.com/api-keys',
       headers: (key) => ({
         'Authorization': `Bearer ${key}`,
@@ -56,6 +60,7 @@ const AIChat = (() => {
       name: 'Anthropic',
       url: 'https://api.anthropic.com/v1/messages',
       defaultModel: 'claude-3-5-haiku-20241022',
+      visionModel: 'claude-3-5-haiku-20241022', // vision-capable
       signupUrl: 'https://console.anthropic.com/settings/keys',
       headers: (key) => ({
         'x-api-key': key,
@@ -70,6 +75,7 @@ const AIChat = (() => {
       name: 'Pollinations (free, often overloaded)',
       url: 'https://text.pollinations.ai/openai',
       defaultModel: 'openai',
+      visionModel: null,
       signupUrl: null,
       headers: () => ({ 'Content-Type': 'application/json' }),
       noAuth: true,
@@ -125,6 +131,11 @@ JSON array. The app executes it and updates every tab. Supported actions:
 - {"type":"markTask","name":"Stronghold of Security","done":true} // a non-quest milestone/task
 - {"type":"fixData","target":"questXp","quest":"Witch's Potion","skill":"magic","xp":325} // correct wrong data
 - {"type":"fixData","target":"questReq","quest":"Dragon Slayer","skill":"crafting","level":8}
+SCREENSHOTS: if she attaches an image of her in-game Skills panel, read EVERY skill
+level you can see (the small number on each skill icon) and emit one setLevel action
+per skill in a single osrs-actions block. Briefly confirm the few highest levels you
+read so she can sanity-check. If a number is blurry/unreadable, skip that skill rather
+than guess.
 Rules: only emit actions she clearly asked for. Use real OSRS skill ids (attack, strength,
 defence, hitpoints, ranged, prayer, magic, cooking, woodcutting, fletching, fishing,
 firemaking, crafting, smithing, mining, herblore, agility, thieving, slayer, farming,
@@ -367,53 +378,103 @@ Example reply: "Nice, grats on 43 Prayer! 🎉 Protect prayers unlocked.\n\`\`\`
            `\n\nEverything on the page just updated to match. 💖`;
   }
 
+  // Build the multimodal content array for a user turn that includes an image.
+  // image = { dataUrl, mediaType }. Format differs per API.
+  function multimodalContent(text, image, isAnthropic) {
+    if (isAnthropic) {
+      const base64 = (image.dataUrl.split(',')[1]) || '';
+      return [
+        { type: 'text', text },
+        { type: 'image', source: { type: 'base64', media_type: image.mediaType || 'image/png', data: base64 } },
+      ];
+    }
+    return [
+      { type: 'text', text },
+      { type: 'image_url', image_url: { url: image.dataUrl } },
+    ];
+  }
+
   // executor: (actions[]) => string[] confirmations  (provided by the UI layer)
-  async function send(userText, stats, completedQuestIds, executor) {
-    if (!userText || !userText.trim()) return null;
-    const userMsg = { role: 'user', content: userText.trim(), ts: Date.now() };
+  // image: { dataUrl, mediaType } | null  — a screenshot to read (vision model)
+  async function send(userText, stats, completedQuestIds, executor, image) {
+    const text = (userText || '').trim();
+    if (!text && !image) return null;
+    const userMsg = { role: 'user', content: text || '📷 Screenshot', ts: Date.now(), image: !!image };
     messages.push(userMsg);
     save();
 
-    // 0. Local COMMAND parser (instant, no API): set levels, mark quests/tasks.
-    const cmd = parseLocalActions(userText);
-    if (cmd) {
-      const confirms = executor ? (executor(cmd.actions) || []) : [];
-      const aiMsg = { role: 'assistant', content: actionReply(confirms), ts: Date.now(),
-                      source: 'local', actions: cmd.actions, applied: confirms.length > 0 };
-      messages.push(aiMsg);
-      save();
-      return aiMsg;
-    }
+    // Images go straight to the vision model — local parser/KB can't read pictures.
+    if (!image) {
+      // 0. Local COMMAND parser (instant, no API): set levels, mark quests/tasks.
+      const cmd = parseLocalActions(text);
+      if (cmd) {
+        const confirms = executor ? (executor(cmd.actions) || []) : [];
+        const aiMsg = { role: 'assistant', content: actionReply(confirms), ts: Date.now(),
+                        source: 'local', actions: cmd.actions, applied: confirms.length > 0 };
+        messages.push(aiMsg);
+        save();
+        return aiMsg;
+      }
 
-    // 1. Try local knowledge base first (instant, no API)
-    const local = localAnswer(userText, stats, completedQuestIds);
-    if (local) {
-      const aiMsg = { role: 'assistant', content: local, ts: Date.now(), source: 'local' };
-      messages.push(aiMsg);
-      save();
-      return aiMsg;
+      // 1. Try local knowledge base first (instant, no API)
+      const local = localAnswer(text, stats, completedQuestIds);
+      if (local) {
+        const aiMsg = { role: 'assistant', content: local, ts: Date.now(), source: 'local' };
+        messages.push(aiMsg);
+        save();
+        return aiMsg;
+      }
     }
 
     // 2. Build prompt + call configured LLM
     const cfg = loadConfig();
     const provider = PROVIDERS[cfg.provider] || PROVIDERS.pollinations;
     const sysPrompt = buildSystemPrompt(stats, completedQuestIds);
-    const recent = messages.slice(-12).map(m => ({ role: m.role, content: m.content }));
+
+    // Vision: pick a vision-capable model; bail with guidance if none.
+    if (image) {
+      const visionModel = cfg.visionModel || provider.visionModel;
+      if (!visionModel) {
+        const pname = (provider.name || '').split('(')[0].trim();
+        const aiMsg = { role: 'assistant', ts: Date.now(), content:
+          `📷 Your current provider (${pname}) can't read screenshots. ` +
+          `Open ⚙️ AI Settings and switch to ⚡ Groq (free) — it reads your Skills panel and fills in every level. Then re-send the screenshot 💕` };
+        messages.push(aiMsg);
+        save();
+        return aiMsg;
+      }
+    }
+    const model = image
+      ? (cfg.visionModel || provider.visionModel)
+      : (cfg.model || provider.defaultModel);
+
+    // The screenshot read instruction (folded into the user's text part).
+    const promptText = image
+      ? `${text ? text + '\n\n' : ''}This is a screenshot of my OSRS Skills panel. Read every skill level you can see and update my stats — emit one setLevel action per skill in a single osrs-actions block.`
+      : text;
+
+    const recent = messages.slice(-12).map((m, i, arr) => {
+      // attach the image only to the most recent user message
+      if (image && m === userMsg) {
+        return { role: 'user', content: multimodalContent(promptText, image, provider.isAnthropic) };
+      }
+      return { role: m.role, content: m.content };
+    });
 
     let body;
     if (provider.isAnthropic) {
       body = {
-        model: cfg.model || provider.defaultModel,
-        max_tokens: 800,
+        model,
+        max_tokens: image ? 1200 : 800,
         system: sysPrompt,
         messages: recent,
       };
     } else {
       body = {
-        model: cfg.model || provider.defaultModel,
+        model,
         messages: [{ role: 'system', content: sysPrompt }, ...recent],
         stream: false,
-        temperature: 0.6,
+        temperature: image ? 0.2 : 0.6,
       };
     }
 

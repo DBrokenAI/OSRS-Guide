@@ -1272,12 +1272,18 @@ const UI = (() => {
         ` : msgs.map(m => aiBubble(m)).join('')}
       </div>
 
-      <div style="display:flex;gap:8px;margin-top:12px;">
-        <input id="ai-input" placeholder="Ask anything about OSRS… 💕" autocomplete="off"
+      <div id="ai-image-preview" style="display:none;margin-top:10px;"></div>
+      <div style="display:flex;gap:8px;margin-top:12px;align-items:center;">
+        <input type="file" id="ai-file" accept="image/*" style="display:none;" onchange="UI.attachImage(this)">
+        <button class="btn btn-soft" title="Attach a Skills-panel screenshot" onclick="document.getElementById('ai-file').click()"
+          style="flex:0 0 auto;padding:10px 14px;">📎</button>
+        <input id="ai-input" placeholder="Ask anything, or 📎 attach a stats screenshot… 💕" autocomplete="off"
           style="flex:1;padding:12px 18px;border-radius:999px;border:1px solid var(--card-border);background:white;font-family:var(--font-body);font-size:14px;outline:none;"
+          onpaste="UI.handleChatPaste(event)"
           onkeydown="if(event.key==='Enter'){UI.aiSend();}">
         <button class="btn" id="ai-send-btn" onclick="UI.aiSend()">Send ✨</button>
       </div>
+      <p style="color:var(--text-faint);font-size:11px;margin:6px 2px 0;">📎 Tip: screenshot your in-game Skills panel and attach it — the AI reads every level and fills your stats in. (Needs a vision model — free Groq works.)</p>
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:11px;color:var(--text-faint);">
         <span>💕 Conversations save locally per browser. AI may be wrong — always sanity-check.</span>
@@ -1318,11 +1324,79 @@ const UI = (() => {
     aiSend();
   }
 
+  // ---------- Chat image attachment (screenshot → stats) ----------
+  let pendingImage = null; // { dataUrl, mediaType }
+
+  function fileToScaledDataUrl(file, cb) {
+    if (!file || !file.type || !file.type.startsWith('image/')) { cb(null); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1600; // keep small skill numbers legible while bounding payload
+        let w = img.width, h = img.height;
+        const scale = Math.min(1, MAX / Math.max(w, h));
+        w = Math.round(w * scale); h = Math.round(h * scale);
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          cb({ dataUrl: canvas.toDataURL('image/jpeg', 0.92), mediaType: 'image/jpeg' });
+        } catch { cb({ dataUrl: reader.result, mediaType: file.type || 'image/png' }); }
+      };
+      img.onerror = () => cb({ dataUrl: reader.result, mediaType: file.type || 'image/png' });
+      img.src = reader.result;
+    };
+    reader.onerror = () => cb(null);
+    reader.readAsDataURL(file);
+  }
+
+  function setPendingImage(file) {
+    fileToScaledDataUrl(file, (img) => {
+      if (!img) { toast('💔 Could not read that image'); return; }
+      pendingImage = img;
+      refreshImagePreviews();
+      toast('📷 Screenshot attached — hit Send and I\'ll read your levels ✨');
+    });
+  }
+
+  function attachImage(input) {
+    const file = input && input.files && input.files[0];
+    if (file) setPendingImage(file);
+    if (input) input.value = ''; // allow re-selecting the same file
+  }
+
+  function handleChatPaste(event) {
+    const items = (event.clipboardData && event.clipboardData.items) || [];
+    for (const it of items) {
+      if (it.type && it.type.startsWith('image/')) {
+        const file = it.getAsFile();
+        if (file) { event.preventDefault(); setPendingImage(file); return; }
+      }
+    }
+  }
+
+  function clearPendingImage() { pendingImage = null; refreshImagePreviews(); }
+
+  function refreshImagePreviews() {
+    const html = pendingImage ? `
+      <div style="display:inline-flex;align-items:center;gap:8px;background:var(--pink-50);border:1px solid var(--pink-200);border-radius:12px;padding:6px 10px;">
+        <img src="${pendingImage.dataUrl}" alt="screenshot" style="height:40px;width:auto;border-radius:6px;">
+        <span style="font-size:12px;color:var(--text-soft);">📷 screenshot ready to read</span>
+        <button onclick="UI.clearPendingImage()" title="Remove" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--text-soft);line-height:1;">×</button>
+      </div>` : '';
+    for (const id of ['chat-image-preview-floating', 'ai-image-preview']) {
+      const el = document.getElementById(id);
+      if (el) { el.innerHTML = html; el.style.display = pendingImage ? 'block' : 'none'; }
+    }
+  }
+
   async function aiSend() {
     const input = document.getElementById('ai-input');
     const btn = document.getElementById('ai-send-btn');
     const text = (input?.value || '').trim();
-    if (!text || !currentStats) return;
+    if ((!text && !pendingImage) || !currentStats) return;
+    const img = pendingImage; clearPendingImage();
     input.value = '';
     btn.disabled = true;
     btn.textContent = '…';
@@ -1332,11 +1406,11 @@ const UI = (() => {
     if (msgsEl) {
       // Clear placeholder if first message
       if (AIChat.all().length === 0) msgsEl.innerHTML = '';
-      msgsEl.insertAdjacentHTML('beforeend', aiBubble({ role: 'user', content: text }));
+      msgsEl.insertAdjacentHTML('beforeend', aiBubble({ role: 'user', content: (img ? '📷 Screenshot' + (text ? ' — ' + text : '') : text) }));
       msgsEl.insertAdjacentHTML('beforeend', `
         <div id="ai-typing" style="display:flex;justify-content:flex-start;margin-bottom:10px;">
           <div style="padding:10px 14px;border-radius:16px 16px 16px 4px;background:var(--pink-50);color:var(--text-soft);font-size:14px;">
-            <span style="display:inline-block;animation:pulse 1.5s infinite;">💭 thinking…</span>
+            <span style="display:inline-block;animation:pulse 1.5s infinite;">${img ? '🔍 reading your screenshot…' : '💭 thinking…'}</span>
           </div>
         </div>
       `);
@@ -1344,7 +1418,7 @@ const UI = (() => {
     }
 
     const completed = completedSet();
-    await AIChat.send(text, currentStats, completed, applyActions);
+    await AIChat.send(text, currentStats, completed, applyActions, img);
 
     btn.disabled = false;
     btn.textContent = 'Send ✨';
@@ -1566,7 +1640,8 @@ const UI = (() => {
     const input = document.getElementById('chat-input-floating');
     const btn = document.getElementById('chat-send-btn');
     const text = (input?.value || '').trim();
-    if (!text || !currentStats) return;
+    if ((!text && !pendingImage) || !currentStats) return;
+    const img = pendingImage; clearPendingImage();
     input.value = '';
     if (btn) { btn.disabled = true; btn.textContent = '…'; }
 
@@ -1575,13 +1650,13 @@ const UI = (() => {
       if (AIChat.all().length === 0) el.innerHTML = '';
       el.insertAdjacentHTML('beforeend', `
         <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
-          <div style="max-width:80%;padding:8px 12px;border-radius:14px 14px 4px 14px;background:linear-gradient(135deg,var(--pink-500),var(--pink-400));color:white;font-size:13px;line-height:1.4;white-space:pre-wrap;word-wrap:break-word;">${esc(text)}</div>
+          <div style="max-width:80%;padding:8px 12px;border-radius:14px 14px 4px 14px;background:linear-gradient(135deg,var(--pink-500),var(--pink-400));color:white;font-size:13px;line-height:1.4;white-space:pre-wrap;word-wrap:break-word;">${img ? '📷 Screenshot' + (text ? ' — ' + esc(text) : '') : esc(text)}</div>
         </div>
       `);
       el.insertAdjacentHTML('beforeend', `
         <div id="chat-typing-floating" style="display:flex;justify-content:flex-start;margin-bottom:8px;">
           <div style="padding:8px 12px;border-radius:14px 14px 14px 4px;background:white;color:var(--text-soft);font-size:13px;">
-            <span style="display:inline-block;animation:pulse 1.5s infinite;">💭 thinking…</span>
+            <span style="display:inline-block;animation:pulse 1.5s infinite;">${img ? '🔍 reading your screenshot…' : '💭 thinking…'}</span>
           </div>
         </div>
       `);
@@ -1589,7 +1664,7 @@ const UI = (() => {
     }
 
     const completed = completedSet();
-    await AIChat.send(text, currentStats, completed, applyActions);
+    await AIChat.send(text, currentStats, completed, applyActions, img);
 
     if (btn) { btn.disabled = false; btn.textContent = 'Send ✨'; }
     renderFloatingChat();
@@ -1680,5 +1755,6 @@ const UI = (() => {
            showAISettings, onProviderChange, saveAISettings,
            applyAction, applyActions, resolveCompletable,
            resumeLiveSync,
+           attachImage, handleChatPaste, clearPendingImage,
            renderAllPublic: renderAll };
 })();
