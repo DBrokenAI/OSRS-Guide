@@ -45,7 +45,7 @@
 
   // Pre-create sections so UI.showSection works
   ['next','tasks','stats','quests','combat','skills','bosses','money','gear','diaries','plugins','rules','keys','journal','notes',
-   'dailies','goals','pets','music','slayer','loadouts','diariestab','ai']
+   'dailies','goals','pets','music','slayer','loadouts','diariestab','minigames','ai']
     .forEach(name => {
       const sec = document.createElement('section');
       sec.className = 'section' + (name === 'next' ? ' active' : '');

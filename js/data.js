@@ -1816,10 +1816,16 @@ const SKILL_TIERS = {
       xpHr: '25k', why: '5x more XP than normal trees. Draynor bank = no walking.', reqs: '15 WC' },
     { from: 30, to: 60, name: 'Willows (or Teaks)', where: 'Draynor Village willows by bank',
       xpHr: '50k', why: 'Willows = AFK + close to bank. Teaks at Castle Wars = 90k xp/hr but click-intensive.', reqs: '30 / 35 WC' },
-    { from: 60, to: 75, name: 'Yews', where: 'Lumbridge yews (3 right by castle)',
-      xpHr: '50k', why: 'Yew logs sell for gp. Drop the logs for max XP.', reqs: '60 WC' },
-    { from: 75, to: 99, name: 'Magic trees', where: 'Sorcerer\'s Tower / Mage Training Arena',
-      xpHr: '75k', why: 'Magic logs = excellent gp + xp combo.', reqs: '75 WC' },
+    { from: 60, to: 65, name: 'Yews (Woodcutting Guild)', where: 'Hosidius Woodcutting Guild',
+      xpHr: '~45k', why: 'Yew logs = decent gp, semi-AFK. The Guild gives an invisible +7 WC boost.', reqs: '60 WC + 75% Hosidius favour' },
+    { from: 65, to: 99, name: '🔥 Sulliuscep (Fossil Island)', where: 'Tar Swamp, Fossil Island',
+      xpHr: '70k → 100k', why: 'Best high-level WC: strong XP + gp (mushrooms/numulite), fairly AFK. Cut the 6-mushroom rotation.', reqs: '65 WC + Bone Voyage' },
+    { from: 90, to: 99, name: 'Redwoods (most AFK alt)', where: 'Woodcutting Guild',
+      xpHr: '~65k', why: 'Very AFK + good gp from redwood logs. Slower XP than teaks but relaxing.', reqs: '90 WC + 75% Hosidius' },
+    { from: 35, to: 99, name: 'Alt: 2-tick Teaks (fastest XP)', where: 'Ape Atoll / Hardwood Grove',
+      xpHr: '120k → 150k+', why: 'Fastest WC XP in the game via 2-tick manipulation — but very click-intensive (hand-cramp method).', reqs: '35 WC' },
+    { from: 1, to: 99, name: 'Bonus: Forestry events', where: 'Any tree, near other players',
+      xpHr: '+passive', why: 'Random Forestry events while chopping drop anima-infused bark → Forestry Kit + QoL/cosmetic rewards. Just keep cutting near others.', reqs: 'none' },
   ],
 
   fishing: [
@@ -1860,6 +1866,8 @@ const SKILL_TIERS = {
     { from: 45, to: 99, name: '⛏️ Motherlode Mine', where: 'Falador Dwarven Mine (entrance at south end)',
       xpHr: '50k–80k', why: 'AFK, profitable (gold/dragonstones), unlocks Prospector outfit (+2.5% XP). Switch at 45, not 30!',
       reqs: '30 Mining (but iron is better until 45)' },
+    { from: 50, to: 99, name: '🌋 Alt: Volcanic Mine', where: 'Mount Karuulm (Museum Camp, 150 Kudos)',
+      xpHr: '40k → 90k', why: 'Active group method — beats MLM XP at higher levels + gp from ore/minerals. Great mid-game change of pace.', reqs: '50 Mining + 150 Kudos' },
     { from: 60, to: 99, name: 'Alt: 3-tick iron (click-intensive)', where: 'Mining Guild',
       xpHr: '120k', why: 'Top XP/hr with 3-tick teak/swordfish. Hand cramps.', reqs: '60 Mining' },
     { from: 75, to: 99, name: 'Alt: Amethyst', where: 'Mining Guild upper',
@@ -1968,9 +1976,15 @@ const SKILL_TIERS = {
       reqs: '25 Thieving + 15% Hosidius favour' },
     { from: 38, to: 55, name: 'Master Farmer (seeds)', where: 'Draynor Village or Hosidius',
       xpHr: '40k', why: 'Profitable seeds for farming runs.', reqs: '38 Thieving' },
-    { from: 55, to: 99, name: 'Ardougne Knights (Dodgy Necklace)', where: 'Ardougne market',
-      xpHr: '90k+', why: 'Best thieving XP for ages. Wear dodgy necklace (Rogues outfit too).',
+    { from: 55, to: 71, name: 'Ardougne Knights (Dodgy necklace)', where: 'Ardougne market',
+      xpHr: '90k+', why: 'Solid AFK-ish XP. Wear a dodgy necklace + Rogue outfit (doubles loot).',
       reqs: '55 Thieving + Ardougne Hard diary preferred' },
+    { from: 71, to: 99, name: '🔥 Pyramid Plunder', where: 'Sophanem (Icthlarin\'s Little Helper)',
+      xpHr: '120k → 275k', why: 'Top Thieving XP — ~120k/hr at 71, ~275k/hr at 91. Also drops the Pharaoh\'s sceptre.',
+      reqs: '71 Thieving (best rooms at 91) + Icthlarin\'s Little Helper' },
+    { from: 82, to: 99, name: 'Alt: Vyres (Darkmeyer)', where: 'Darkmeyer (Sins of the Father)',
+      xpHr: '~250k + huge gp', why: 'Top XP AND ~2.5M gp/hr — blood shards, runes, rubies. Wear the Rogue outfit for double loot.',
+      reqs: '82 Thieving + Sins of the Father' },
   ],
 
   slayer: [
@@ -2153,7 +2167,7 @@ const BOSSES = [
     suggestedStats: '75 Range (Blowpipe), 74 Prayer (Rigour), antifire',
     location: 'Ungael (Dragon Slayer II)',
     loot: 'Vorkath head, dragon items, scales',
-    why: '🔥 Best money-maker in mid-game. 2-3M gp/hr once learned.',
+    why: '🔥 Best money-maker in mid-game. ~1.5-2M gp/hr once learned.',
     wiki: 'Vorkath' },
 
   { id: 'zulrah',         name: 'Zulrah',         reqs: { range: 75, mage: 75 },
@@ -2195,9 +2209,13 @@ const MONEY_METHODS = [
     reqs: '65 Fishing + Tai Bwo Wannai Trio', summary: 'Top-tier food for PvM, always in demand.',
     wiki: 'Raw_karambwan' },
 
-  { name: 'Blast Furnace (gold bars)', gpHr: '600k',
-    reqs: '40 Smithing + ice gloves', summary: 'Profit from gold bar margins. Stamina pots help.',
+  { name: 'Blast Furnace (gold bars)', gpHr: '~150k + Smithing XP',
+    reqs: '40 Smithing + Goldsmith gauntlets', summary: 'Really a fast Smithing XP method now — gold-bar profit is small and swingy. Wear goldsmith gauntlets for the XP.',
     wiki: 'Blast_Furnace' },
+
+  { name: 'Vyres (Darkmeyer thieving)', gpHr: '~2.5m',
+    reqs: '82 Thieving + Sins of the Father', summary: 'Pickpocket Vyres with the Rogue outfit — top Thieving gp AND XP. Rare blood shard worth 7M+.',
+    wiki: 'Vyre_(Thieving)' },
 
   { name: 'Herb runs (every 80 min)', gpHr: '~5m/day',
     reqs: '32+ Farming', summary: '5 patches × 5 min = ~500K-1M gp per run. Passive income.',
@@ -2211,13 +2229,128 @@ const MONEY_METHODS = [
     reqs: 'Priest in Peril + combat ~80', summary: 'High variance, but Barrows pieces ~3-5M each.',
     wiki: 'Barrows' },
 
-  { name: 'Vorkath', gpHr: '2m–3m',
+  { name: 'Vorkath', gpHr: '1.5m–2m',
     reqs: 'Dragon Slayer II + 75 Range + 74 Prayer', summary: 'King of mid-game money. Learn the rotation.',
     wiki: 'Vorkath' },
 
   { name: 'Zulrah', gpHr: '1.5m–2.5m',
     reqs: '75 Range + 75 Mage + Regicide', summary: 'Classic money. More mechanics than Vorkath.',
     wiki: 'Zulrah' },
+];
+
+// ==========================================================
+// MINIGAMES — account-growth activities (XP, gear unlocks, gp).
+// reqs (skill/combat) gate ready vs locked from live stats.
+// questNote = quest you also need (advisory, shown on the card).
+// grows = XP it gives · unlocks = the key reward · gp = income note
+// ==========================================================
+const MINIGAMES = [
+  // ----- Skilling minigames (the modern training meta) -----
+  { id: 'wintertodt', name: 'Wintertodt', icon: '🔥', category: 'skilling', priority: 1,
+    reqs: { skill: { firemaking: 50 } },
+    grows: 'Firemaking', unlocks: 'Rune pouch, Pyromancer outfit, Bruma torch, Phoenix pet', gp: 'Supplies + gp',
+    why: 'Best Firemaking 50→99 by far, and it hands you food, gp, herbs, and the Rune Pouch. Safe group activity.',
+    how: 'Wintertodt camp, far NW of Great Kourend (games necklace → Wintertodt, or Kourend teleport).',
+    wiki: 'Wintertodt' },
+
+  { id: 'tempoross', name: 'Tempoross', icon: '🎣', category: 'skilling', priority: 1,
+    reqs: { skill: { fishing: 35 } },
+    grows: 'Fishing', unlocks: 'Angler outfit, Spirit flakes (+fish), Fish barrel, Tackle box', gp: 'Fish + gp',
+    why: 'Best Fishing from 35+. The Angler outfit and Spirit Flakes boost every fishing trip you ever do after.',
+    how: 'Ruins of Unkah, south of Al Kharid (sail from the docks).',
+    wiki: 'Tempoross' },
+
+  { id: 'gotr', name: 'Guardians of the Rift', icon: '🌀', category: 'skilling', priority: 1,
+    reqs: {}, questNote: 'Temple of the Eye',
+    grows: 'Runecraft', unlocks: 'Raiments of the Eye (+runes), Colossal pouch, Abyssal needle/lantern', gp: 'Runes',
+    why: 'The modern Runecraft meta — far better than running the Abyss. The outfit gives bonus runes forever.',
+    how: 'Temple of the Eye (do the short quest first). Talk to Apprentice Felix.',
+    wiki: 'Guardians of the Rift' },
+
+  { id: 'mahogany_homes', name: 'Mahogany Homes', icon: '🏠', category: 'skilling', priority: 1,
+    reqs: {},
+    grows: 'Construction', unlocks: 'Plank sack, Carpenter outfit', gp: 'Cheap (~3 gp/xp)',
+    why: 'The cheapest Construction from level 1 — ~6× cheaper than the chair grind, no POH needed.',
+    how: 'Talk to Amy in Falador. Take contracts, bring the right planks (Plank sack helps a lot).',
+    wiki: 'Mahogany Homes' },
+
+  { id: 'giants_foundry', name: "Giants' Foundry", icon: '🔨', category: 'skilling', priority: 2,
+    reqs: { skill: { smithing: 15 } }, questNote: 'Sleeping Giants (miniquest)',
+    grows: 'Smithing', unlocks: "Smiths' outfit (+xp), Kovac's grog, Double ammo mould", gp: 'Cheap XP',
+    why: 'Modern Smithing meta — AFK-friendly, no ore hauling, much cheaper than Blast Furnace.',
+    how: 'Cyclosis — do the very short Sleeping Giants miniquest first.',
+    wiki: "Giants' Foundry" },
+
+  { id: 'hallowed_sepulchre', name: 'Hallowed Sepulchre', icon: '🦇', category: 'skilling', priority: 2,
+    reqs: { skill: { agility: 52 } }, questNote: 'Sins of the Father',
+    grows: 'Agility', unlocks: 'Dark graceful, Ring of endurance, Hallowed gear', gp: 'High (best Agility gp)',
+    why: 'Best Agility XP AND the most profitable Agility method — obstacles + looting. 1st floor opens at 52.',
+    how: 'Darkmeyer (Sins of the Father). Run the floors, grab loot, spend hallowed marks on rewards.',
+    wiki: 'Hallowed Sepulchre' },
+
+  { id: 'tithe_farm', name: 'Tithe Farm', icon: '🌱', category: 'skilling', priority: 2,
+    reqs: { skill: { farming: 34 } },
+    grows: 'Farming', unlocks: "Farmer's outfit (+xp), Gricoller's can, Seed box, Herb sack, Auto-weed", gp: '—',
+    why: "Fast Farming XP plus the Farmer's outfit (+xp) and herb sack/seed box that make every farm run smoother.",
+    how: 'Hosidius (no favour needed since 2024). Plant Golovanova seeds, water with Gricoller\'s can.',
+    wiki: 'Tithe Farm' },
+
+  { id: 'volcanic_mine', name: 'Volcanic Mine', icon: '🌋', category: 'skilling', priority: 3,
+    reqs: { skill: { mining: 50 } }, questNote: '150 Kudos / Museum Camp built',
+    grows: 'Mining', unlocks: 'Petrified Pete shop (minerals → ore)', gp: 'Good (ore + minerals)',
+    why: 'Strong mid-game Mining XP + gp without Motherlode AFK — scales ~40k/hr at 50 to ~90k at 99.',
+    how: 'Mount Karuulm area (after building the Museum Camp, 150 Kudos). Group activity.',
+    wiki: 'Volcanic Mine' },
+
+  { id: 'pyramid_plunder', name: 'Pyramid Plunder', icon: '🏺', category: 'skilling', priority: 3,
+    reqs: { skill: { thieving: 21 } }, questNote: "Icthlarin's Little Helper (+ Contact! to bank)",
+    grows: 'Thieving', unlocks: "Pharaoh's sceptre (teleports)", gp: 'Artefacts + sceptre',
+    why: 'Top Thieving XP at high levels — ~120k/hr at 71, ~275k/hr at 91. Best non-Vyre method.',
+    how: 'Sophanem (start Icthlarin\'s Little Helper). Loot urns/sarcophagi, climb to higher rooms as you level.',
+    wiki: 'Pyramid Plunder' },
+
+  { id: 'mta', name: 'Mage Training Arena', icon: '🔮', category: 'skilling', priority: 3,
+    reqs: { skill: { magic: 33 } },
+    grows: 'Magic', unlocks: "Infinity robes, Mage's book, Master wand, Bones to Peaches", gp: '—',
+    why: 'Unlocks Infinity robes (mage gear) and Bones to Peaches (free food forever). Do it for the rewards, not XP.',
+    how: 'West of the Exam Centre near Al Kharid. Earn pizazz points across the 4 rooms.',
+    wiki: 'Magic Training Arena' },
+
+  // ----- Combat / gear-unlock minigames -----
+  { id: 'nightmare_zone', name: 'Nightmare Zone (NMZ)', icon: '😴', category: 'combat', priority: 2,
+    reqs: { combat: 60 }, questNote: 'a handful of quest bosses unlocked',
+    grows: 'Melee / Ranged / Magic + HP', unlocks: 'Stat imbues: rings, Slayer helm, Salve amulet', gp: '—',
+    why: 'Best AFK combat XP, and points imbue your rings / Slayer helm / Salve — permanent power upgrades you keep forever.',
+    how: 'Yanille. Use absorption + overload potions to AFK. Imbue gear with the points.',
+    wiki: 'Nightmare Zone' },
+
+  { id: 'pest_control', name: 'Pest Control', icon: '🐛', category: 'combat', priority: 2,
+    reqs: { combat: 40 },
+    grows: 'Combat (any style)', unlocks: 'Void Knight set — cheap, near-BiS Ranged/Mage gear', gp: '—',
+    why: 'Commendation points buy the Void Knight set: extremely cheap, powerful Ranged & Mage armour. Also fast combat XP.',
+    how: "Void Knights' Outpost (boat at Port Sarim). Novice boat = 40 combat. Defend the Void Knight, kill the portals.",
+    wiki: 'Pest Control' },
+
+  { id: 'barbarian_assault', name: 'Barbarian Assault', icon: '⚔️', category: 'combat', priority: 2,
+    reqs: {},
+    grows: '—', unlocks: 'Fighter torso (top cheap Str body), Penance gloves', gp: '—',
+    why: 'The Fighter torso is one of the best-value Strength bodies in the game — a must-have melee upgrade. Penance gloves bridge to Barrows gloves.',
+    how: '5-player team minigame at the Barbarian Outpost. Earn honour points, then beat the Penance Queen.',
+    wiki: 'Barbarian Assault' },
+
+  { id: 'fight_caves', name: 'Fight Caves → Fire Cape', icon: '🌋', category: 'combat', priority: 3,
+    reqs: { combat: 70, skill: { ranged: 61 } },
+    grows: '—', unlocks: 'Fire cape (+4 Str, best cheap melee cape) → gateway to Infernal cape', gp: '—',
+    why: 'The Fire cape is a huge, cheap Strength/combat cape upgrade and the prerequisite for the Infernal cape later.',
+    how: 'TzHaar Fight Cave (Mor Ul Rek, Karamja volcano). Solo 63 waves with Range + protect prayers — follow a guide.',
+    wiki: 'Fight Caves' },
+
+  { id: 'tears_of_guthix', name: 'Tears of Guthix (weekly)', icon: '💧', category: 'reward', priority: 3,
+    reqs: {}, questNote: 'Tears of Guthix (quest)',
+    grows: 'Your lowest skill', unlocks: 'Free weekly XP in your lowest/least-played skill', gp: '—',
+    why: 'Free XP every week, dumped into your lowest skill — great for chipping away at slow skills. Do it every week.',
+    how: "Juna's cave under Lumbridge Swamp. Collect tears in the moving stream.",
+    wiki: 'Tears of Guthix' },
 ];
 
 // ==========================================================

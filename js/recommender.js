@@ -66,6 +66,19 @@ const Recommender = (() => {
       .sort((a, b) => (a.priority || 9) - (b.priority || 9));
   }
 
+  // ---------- Minigames (gated on skill/combat reqs from live stats) ----------
+  function readyMinigames(stats, completedIds) {
+    return (typeof MINIGAMES === 'undefined' ? [] : MINIGAMES)
+      .filter(m => masterTaskQualifies(m, stats, completedIds))
+      .sort((a, b) => (a.priority || 9) - (b.priority || 9));
+  }
+  function lockedMinigames(stats, completedIds) {
+    return (typeof MINIGAMES === 'undefined' ? [] : MINIGAMES)
+      .filter(m => !masterTaskQualifies(m, stats, completedIds))
+      .map(m => Object.assign({}, m, { _gap: readinessGap(m.reqs, stats, completedIds) }))
+      .sort((a, b) => a._gap.total - b._gap.total || (a.priority || 9) - (b.priority || 9));
+  }
+
   // Compute the smallest "distance" (combined missing levels) to readiness
   function readinessGap(reqs, stats, completedIds) {
     const cb = currentCombatLevel(stats);
@@ -389,6 +402,24 @@ const Recommender = (() => {
       });
     }
 
+    // ===== 4c. HIGH-IMPACT MINIGAMES she can do right now =====
+    const readyMgs = readyMinigames(stats, completedQuestIds)
+      .filter(m => (m.priority || 9) <= 2)
+      .slice(0, 4);
+    for (const m of readyMgs) {
+      const rid = 'mg_' + m.id;
+      if (recs.some(r => r.id === rid)) continue;
+      const grows = Array.isArray(m.grows) ? m.grows.join(', ') : m.grows;
+      recs.push({
+        id: rid, type: 'minigame',
+        priority: (m.priority || 2) + 1, // sit just under quests of the same tier
+        icon: m.icon, tag: 'gold', cat: 'minigame',
+        title: m.name,
+        detail: `${m.why}<br><em>Grows:</em> ${grows}${m.unlocks ? ` · <em>Unlocks:</em> ${m.unlocks}` : ''}${m.questNote ? `<br><em>Also needs:</em> ${m.questNote}` : ''}`,
+        wiki: m.wiki ? WIKI(m.wiki) : null,
+      });
+    }
+
     // ===== 5. CURRENT BEST METHOD for her weakest non-combat skills =====
     // Show ALL non-combat skills under level 20 — beginners need every method spelled out.
     // For higher levels, just show the 3 weakest.
@@ -619,6 +650,7 @@ const Recommender = (() => {
   return { topRecommendations, comingUpRecommendations, lifetimeGoals,
            readyQuests, lockedQuests, readyBosses,
            readyMasterTasks, nearMasterTasks, nearQuests,
+           readyMinigames, lockedMinigames,
            currentTier, nextTier, gearForLevel, readyDiaryTasks,
            currentCombatLevel };
 })();

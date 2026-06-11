@@ -88,6 +88,7 @@ const UI = (() => {
     renderSlayer();
     renderLoadouts();
     renderDiariesTab();
+    renderMinigames();
     renderAI();
   }
 
@@ -1265,6 +1266,54 @@ const UI = (() => {
     `;
   }
 
+  // ============ MINIGAMES ============
+  function formatMiniGap(gap) {
+    if (!gap || !gap.missing) return '';
+    return gap.missing.map(x => {
+      if (x.kind === 'combat') return `Combat ${x.need}`;
+      if (x.kind === 'skill')  return `${x.icon || ''} ${x.name} ${x.need}`;
+      if (x.kind === 'quest')  return `Quest: ${x.name}`;
+      return '';
+    }).filter(Boolean).join(' · ');
+  }
+
+  function minigameCard(m, lockedMode) {
+    const grows = Array.isArray(m.grows) ? m.grows.join(', ') : m.grows;
+    const gap = lockedMode && m._gap ? formatMiniGap(m._gap) : '';
+    return `
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">${m.icon} ${esc(m.name)}</div>
+          <span class="tag ${lockedMode ? 'locked' : 'ready'}">${lockedMode ? 'LOCKED' : 'READY ✨'}</span>
+        </div>
+        <p class="card-sub" style="margin:4px 0 6px;">${esc(m.why)}</p>
+        <p style="margin:2px 0;font-size:13px;"><strong>Grows:</strong> ${esc(grows)}</p>
+        ${m.unlocks ? `<p style="margin:2px 0;font-size:13px;"><strong>Unlocks:</strong> ${esc(m.unlocks)}</p>` : ''}
+        ${m.gp && m.gp !== '—' ? `<p style="margin:2px 0;font-size:13px;"><strong>gp:</strong> ${esc(m.gp)}</p>` : ''}
+        ${m.questNote ? `<p style="margin:2px 0;font-size:13px;color:var(--text-soft);"><strong>Also needs:</strong> ${esc(m.questNote)}</p>` : ''}
+        ${gap ? `<p style="margin:2px 0;font-size:13px;color:var(--pink-600);"><strong>Unlock at:</strong> ${gap}</p>` : ''}
+        ${m.how ? `<p style="margin:6px 0 0;font-size:13px;color:var(--text-soft);"><em>How:</em> ${esc(m.how)}</p>` : ''}
+        <p style="margin:8px 0 0;"><a class="wiki-link" target="_blank" href="${WIKI(m.wiki || m.name)}">Wiki →</a></p>
+      </div>`;
+  }
+
+  function renderMinigames() {
+    const el = sectionEl('minigames');
+    const completed = completedSet();
+    const ready = Recommender.readyMinigames(currentStats, completed);
+    const locked = Recommender.lockedMinigames(currentStats, completed);
+    el.innerHTML = `
+      <h2>🎮 Minigames</h2>
+      <p style="color:var(--text-soft);">
+        Minigames are some of the best ways to <strong>grow your account</strong> — fast XP, gear you can't get anywhere else (Void, Fighter torso, Fire cape, outfits), and gp. The ones below are unlocked at <em>your</em> current stats. ✨
+      </p>
+      <h3>✅ Ready now (${ready.length})</h3>
+      <div class="grid-3">${ready.map(m => minigameCard(m, false)).join('') || '<p>Train up a little to unlock your first minigames!</p>'}</div>
+      <h3>🔒 Coming up (closest first)</h3>
+      <div class="grid-3">${locked.map(m => minigameCard(m, true)).join('') || '<p>You\'ve unlocked them all! 🎉</p>'}</div>
+    `;
+  }
+
   // ============ AI ASSISTANT ============
   function renderAI() {
     const el = sectionEl('ai');
@@ -1701,6 +1750,7 @@ const UI = (() => {
     for (const it of SLAYER_MONSTERS) if (it.name.toLowerCase().includes(query)) results.push({ kind: 'slayer', name: it.name, tab: 'slayer' });
     for (const it of PETS) if (it.name.toLowerCase().includes(query)) results.push({ kind: 'pet', name: it.name, tab: 'pets' });
     for (const it of MONEY_METHODS) if (it.name.toLowerCase().includes(query)) results.push({ kind: 'money', name: it.name, tab: 'money' });
+    if (typeof MINIGAMES !== 'undefined') for (const it of MINIGAMES) if (it.name.toLowerCase().includes(query)) results.push({ kind: 'minigame', name: it.name, tab: 'minigames' });
     for (const it of PLUGINS) if (it.name.toLowerCase().includes(query)) results.push({ kind: 'plugin', name: it.name, tab: 'plugins' });
     for (const m of SKILL_META) if (m.name.toLowerCase().includes(query)) results.push({ kind: 'skill', name: m.name, tab: 'skills' });
     return results.slice(0, 12);
