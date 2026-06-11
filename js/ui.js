@@ -628,22 +628,40 @@ const UI = (() => {
   }
 
   // ============ MONEY ============
+  // Approx gp/hr value parsed from the method's gpHr string, for ranking.
+  function moneyValue(m) {
+    const s = String(m.gpHr || '').toLowerCase();
+    let max = 0;
+    for (const mt of s.matchAll(/([\d.]+)\s*([km])?/g)) {
+      let n = parseFloat(mt[1]);
+      if (!isFinite(n)) continue;
+      if (mt[2] === 'm') n *= 1e6; else if (mt[2] === 'k') n *= 1e3;
+      if (n > max) max = n;
+    }
+    if (/day/.test(s)) max = max / 8; // normalize per-day income toward an hourly rate
+    return max;
+  }
+
   function renderMoney() {
     const el = sectionEl('money');
+    // Top money makers first (highest gp/hr). Starter/one-time methods fall to the bottom.
+    const ranked = MONEY_METHODS.slice().sort((a, b) => moneyValue(b) - moneyValue(a));
     el.innerHTML = `
-      <h2>💰 Money-Making</h2>
-      <p style="color:var(--text-soft);">Sorted from no-requirement starter methods to mid-game bossing. ✨</p>
-      ${MONEY_METHODS.map(m => `
-        <div class="card">
+      <h2>💰 Top Money Makers</h2>
+      <p style="color:var(--text-soft);">Ranked by gp/hr — best earners first. Check the <strong>Reqs</strong> to see what you can do at your level. ✨</p>
+      ${ranked.map((m, i) => {
+        const isTop = i < 3 && moneyValue(m) > 0;
+        return `
+        <div class="card"${isTop ? ' style="border:1px solid var(--pink-300);box-shadow:0 2px 12px rgba(232,56,138,0.12);"' : ''}>
           <div class="card-header">
-            <div class="card-title">💰 ${esc(m.name)}</div>
-            <span class="tag gold">${esc(m.gpHr)} / hr</span>
+            <div class="card-title">${isTop ? '🔥 ' : ''}<span style="color:var(--text-faint);font-size:13px;">#${i + 1}</span> 💰 ${esc(m.name)}</div>
+            <span class="tag ${isTop ? 'gold' : 'green'}">${esc(m.gpHr)}${/day/i.test(m.gpHr) ? '' : ' / hr'}</span>
           </div>
           <p style="margin:4px 0;font-size:13px;"><strong>Reqs:</strong> ${esc(m.reqs)}</p>
           <p style="margin:6px 0 0;color:var(--text-soft);">${esc(m.summary)}</p>
           <p style="margin:6px 0 0;"><a class="wiki-link" target="_blank" href="${WIKI(m.wiki || m.name)}">Wiki →</a></p>
-        </div>
-      `).join('')}
+        </div>`;
+      }).join('')}
     `;
   }
 
