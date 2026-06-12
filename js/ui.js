@@ -80,7 +80,7 @@ const UI = (() => {
   const NAV_GROUPS = [
     { key: 'path',        icon: '🧭', label: 'The Path',     children: [['path', 'The Path']] },
     { key: 'plan',        icon: '💖', label: 'Plan',         children: [['next', 'Next Up'], ['dailies', 'Dailies'], ['goals', 'Goals'], ['tasks', 'My Tasks']] },
-    { key: 'stats',       icon: '📊', label: 'Stats & Skills', children: [['stats', 'Stats'], ['skills', 'Skills'], ['combat', 'Combat']] },
+    { key: 'stats',       icon: '📊', label: 'Stats & Skills', children: [['stats', 'Stats'], ['skills', 'Skills'], ['combat', 'Combat'], ['unlocks', 'Unlocks']] },
     { key: 'quests',      icon: '📜', label: 'Quests',       children: [['quests', 'Quests']] },
     { key: 'pvm',         icon: '⚔️', label: 'PvM',          children: [['bosses', 'Bosses'], ['slayer', 'Slayer'], ['minigames', 'Minigames'], ['loadouts', 'Loadouts']] },
     { key: 'wealth',      icon: '💰', label: 'Wealth & Gear', children: [['money', 'Money'], ['gear', 'Gear']] },
@@ -160,6 +160,7 @@ const UI = (() => {
     renderMinigames();
     renderPath();
     renderHistory();
+    renderUnlocks();
     renderAI();
   }
 
@@ -823,7 +824,7 @@ const UI = (() => {
     const magic = Recommender.gearForLevel('magic', currentStats);
 
     function gearTable(title, set) {
-      const slots = ['weapon','head','body','legs','boots','amulet','cape'];
+      const slots = ['weapon','head','body','legs','boots','gloves','amulet','ring','cape'];
       return `
         <h3>${title}</h3>
         <table class="method-table">
@@ -1572,6 +1573,55 @@ const UI = (() => {
         ${current ? `<div style="margin-top:10px;font-size:14px;">▶️ <strong>Do this next:</strong> ${esc(current.label)}<br><span style="color:var(--text-soft);font-size:13px;">${esc(current.detail || '')}</span></div>` : '<div style="margin-top:10px;">🎉 You\'ve completed the whole roadmap — you\'re a bossing main! 💖</div>'}
       </div>
       ${phaseHtml}
+    `;
+  }
+
+  // ============ UNLOCKS (outfits, slayer rewards, prayers/spellbooks) ============
+  function renderUnlocks() {
+    const el = sectionEl('unlocks');
+    const lvl = id => currentStats.skills[id]?.level || 1;
+    const outfits = (typeof SKILLING_OUTFITS !== 'undefined') ? SKILLING_OUTFITS : [];
+    const slayer = (typeof SLAYER_UNLOCKS !== 'undefined') ? SLAYER_UNLOCKS : [];
+    const power = (typeof POWER_UNLOCKS !== 'undefined') ? POWER_UNLOCKS : [];
+
+    el.innerHTML = `
+      <h2>🔓 Unlocks — outfits, Slayer rewards & power spikes</h2>
+      <p style="color:var(--text-soft);">The permanent upgrades that compound: XP-boosting outfits, the Slayer reward shop, and the prayer/spellbook unlocks that define your DPS. ✨</p>
+
+      <h3>👕 Skilling outfits</h3>
+      <p style="color:var(--text-soft);font-size:13px;margin-top:-4px;">Wear the full set for the bonus. Grab the one for whatever you're grinding.</p>
+      <div class="grid-3">
+        ${outfits.map(o => `
+          <div class="card">
+            <div class="card-header"><div class="card-title">${o.icon} ${esc(o.name)}</div><span class="tag green">${esc(o.skill)}</span></div>
+            <p style="margin:4px 0;font-size:13px;"><strong>Bonus:</strong> ${esc(o.bonus)}</p>
+            <p style="margin:4px 0;font-size:13px;color:var(--text-soft);"><strong>From:</strong> ${esc(o.source)}</p>
+          </div>`).join('')}
+      </div>
+
+      <h3 style="margin-top:18px;">💀 Slayer reward unlocks</h3>
+      <p style="color:var(--text-soft);font-size:13px;margin-top:-4px;">Spend Slayer points here in roughly this order. You're Slayer ${lvl('slayer')}.</p>
+      ${[1,2,3].map(p => {
+        const items = slayer.filter(s => s.priority === p);
+        if (!items.length) return '';
+        const label = p === 1 ? 'Buy first' : p === 2 ? 'Then these' : 'Later / situational';
+        return `<h4 style="margin:12px 0 4px;color:var(--text-soft);">${label}</h4>
+          ${items.map(s => `
+            <div class="task-row"><div class="task-body">
+              <div class="task-label">${esc(s.name)} <span class="tag gold" style="font-size:10px;">${esc(s.cost)} pts</span></div>
+              <div class="task-meta">${esc(s.why)}</div>
+            </div></div>`).join('')}`;
+      }).join('')}
+
+      <h3 style="margin-top:18px;">🙏 Prayer & spellbook power unlocks</h3>
+      <div class="grid-3">
+        ${power.map(u => `
+          <div class="card">
+            <div class="card-header"><div class="card-title">${u.icon} ${esc(u.name)}</div><span class="tag purple">${esc(u.req)}</span></div>
+            <p style="margin:4px 0;font-size:13px;">${esc(u.why)}</p>
+            <p style="margin:4px 0;font-size:13px;color:var(--text-soft);"><em>How:</em> ${esc(u.how)}</p>
+          </div>`).join('')}
+      </div>
     `;
   }
 

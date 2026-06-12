@@ -216,6 +216,36 @@ const BOSS_LOADOUTS = {
     inventory: ['Antifire pot × 2', 'Shark × 6', 'Super restore × 1', 'Wilderness sword for tele'],
     notes: 'Wilderness — wear NOTHING valuable. Trip to KBD via lever in Edgeville. Pray Magic. Bring teleport for emergencies.',
   },
+  sarachnis: {
+    boss: 'Sarachnis',
+    gear: ['Slayer helm (i) / Neitiznot', 'Amulet of torture/fury', 'Bandos/Fighter torso', 'Bandos tassets', 'Primordial/dragon boots', 'Whip/tentacle + dragon defender', 'Barrows gloves', 'Fire cape'],
+    inventory: ['Sharks/manta × 8', 'Prayer pot(4) × 2', 'Stamina × 1', 'Super combat × 1', 'Forthos teleport'],
+    notes: 'Crush weak — use a cudgel/hasta if you have one. Protect from Missiles. Drops seeds, herbs, and the Sarachnis cudgel.',
+  },
+  cerberus: {
+    boss: 'Cerberus',
+    gear: ['Slayer helm (i)', 'Amulet of torture', 'Bandos/Torva body', 'Bandos/Torva legs', 'Primordial boots', 'Abyssal tentacle + avernic/dragon defender', 'Ferocious/Barrows gloves', 'Infernal/fire cape', 'Berserker (i)'],
+    inventory: ['Super combat × 2', 'Prayer pots × 4-5', 'Saradomin brews / manta × rest', 'Stamina × 1', 'Spec weapon optional'],
+    notes: 'On a hellhound task. Flick Protect Melee; when the ghosts/lava/spawn appear, react to the attack she summons. Soul split helps if you have it.',
+  },
+  gwd_bandos: {
+    boss: 'General Graardor (Bandos)',
+    gear: ['Slayer helm/Neitiznot', 'Torture/fury', 'Bandos/Torva', 'Primordial/dragon boots', 'Crush weapon (Zammy hasta / bludgeon)', 'Avernic/dragon defender', 'Barrows/Ferocious gloves', 'Fire/Infernal cape'],
+    inventory: ['Super combat × 2', 'Prayer pots × 4', 'Brews/sharks × rest', 'Stamina', 'Games necklace / GWD tele'],
+    notes: 'Need 70 Strength to enter. Protect from Melee on Graardor; kill the minions (especially the mage). Bring a crush weapon.',
+  },
+  toa: {
+    boss: 'Tombs of Amascut',
+    gear: ['Best ranged (Bowfa/blowpipe/Tbow)', 'Masori/Armadyl', 'Pegasian boots', 'Anguish', 'Zaryte/Barrows gloves', "Ava's assembler", 'Plus a magic switch (Shadow/Sang/trident) + Occult'],
+    inventory: ['Ranging + Saradomin brews + restores', 'Stamina', 'Chivalry/Rigour active', 'Salt/teleport', 'Scale invocations to your gear'],
+    notes: 'The most beginner-friendly raid — start at 150-300 invocation and raise it as you improve. Ranged + Magic switches cover every room.',
+  },
+  demonic_gorillas: {
+    boss: 'Demonic Gorillas',
+    gear: ['Melee: whip/lance + torture; Range: blowpipe/bowfa + anguish; Mage: trident + occult', 'Switch all 3 styles + overhead prayers each kill'],
+    inventory: ['Brews/sharks × lots', 'Prayer pots × 4', 'All 3 weapon styles', 'Stamina', 'Royal seed pod / teleport'],
+    notes: 'They protect against your style and switch — change weapon AND overhead prayer every couple of attacks. Drops Zenyte shards (Anguish/Torture/Tormented).',
+  },
 };
 
 // ==========================================================
@@ -297,3 +327,44 @@ const QUEST_WALKTHROUGHS = {
     'Cast the Crown spell (provided), then take the treasure. → 🔥 +13,750 Attack + +13,750 Strength XP (instant 30/30!).',
   ],
 };
+
+// ==========================================================
+// PROGRESSION SYSTEMS — outfits, slayer unlocks, power unlocks.
+// Shown in the "Unlocks" tab. (Wiki-verified.)
+// ==========================================================
+const SKILLING_OUTFITS = [
+  { name: 'Prospector kit', icon: '⛏️', skill: 'Mining', bonus: '+2.5% Mining XP', source: 'Motherlode Mine (golden nuggets) — Prospector Percy' },
+  { name: "Carpenter's outfit", icon: '🏠', skill: 'Construction', bonus: '+2.5% Construction XP', source: 'Mahogany Homes (2,000 points)' },
+  { name: "Smiths' uniform", icon: '🔨', skill: 'Smithing', bonus: '+2.5% Smithing XP', source: "Giants' Foundry (15,000 reputation)" },
+  { name: 'Pyromancer outfit', icon: '🔥', skill: 'Firemaking', bonus: '+2.5% Firemaking XP', source: 'Wintertodt supply crates' },
+  { name: "Angler's outfit", icon: '🎣', skill: 'Fishing', bonus: '+2.5% Fishing XP', source: 'Fishing Trawler / Tempoross (Alry the Angler)' },
+  { name: 'Lumberjack outfit', icon: '🪓', skill: 'Woodcutting', bonus: '+2.5% Woodcutting XP', source: 'Forestry shop / Temple Trekking' },
+  { name: "Farmer's outfit", icon: '🌱', skill: 'Farming', bonus: '+2.5% Farming XP', source: 'Tithe Farm (≈400 points)' },
+  { name: 'Raiments of the Eye', icon: '🌀', skill: 'Runecraft', bonus: '+60% runes when Runecrafting', source: 'Guardians of the Rift (abyssal pearls)' },
+  { name: 'Graceful outfit', icon: '🤸', skill: 'Agility', bonus: 'Run-energy regen + weight reduction (no XP boost)', source: 'Marks of grace — Grace at Rogues\' Den' },
+  { name: 'Rogue equipment', icon: '🥷', skill: 'Thieving', bonus: 'Chance to double pickpocket loot', source: "Rogues' Den minigame" },
+  { name: "Zealot's robes", icon: '🙏', skill: 'Prayer', bonus: '5% chance to save bones / ensouled heads', source: 'Shades of Mort\'ton (Phosani / shade keys)' },
+  { name: 'Guild hunter outfit', icon: '🦝', skill: 'Hunter', bonus: '+2.5% catch rate + more rare parts', source: 'Hunter Guild (Varlamore)' },
+];
+
+const SLAYER_UNLOCKS = [
+  { name: 'Bigger and Badder', cost: '50', why: 'Superior slayer monsters can spawn — extra XP + unique drops (imbue/eternal gems).', priority: 1 },
+  { name: 'Block task slots (×6)', cost: '100 each', why: 'Permanently block your most-hated tasks. Worth maxing out as you can afford it.', priority: 1 },
+  { name: 'Malevolent Masquerade', cost: '400', why: 'Unlocks crafting the Slayer helmet (needs 55 Crafting) — a core combat upgrade. Imbue it at NMZ/Soul Wars.', priority: 1 },
+  { name: "I Wildy More Slayer", cost: 'free', why: 'Toggle Wilderness tasks on/off. Turn off if you avoid the Wildy.', priority: 2 },
+  { name: 'Ring Bling', cost: '150', why: 'Craft Slayer rings (75 Crafting) — handy teleports to Slayer locations.', priority: 2 },
+  { name: 'Broader Fletching', cost: '300', why: 'Make broad bolts/arrows — cheap ammo + profit while you slay.', priority: 2 },
+  { name: 'Unlock boss tasks', cost: '200', why: 'Adds boss assignments at high-level masters (Duradel/Nieve/Konar) — KC + drops on-task.', priority: 3 },
+  { name: 'Task storage', cost: '500', why: 'Store one task so you can swap freely without cancelling. Nice QoL.', priority: 3 },
+  { name: 'Superior extensions', cost: '100 each', why: 'Extend specific tasks for longer, more efficient grinds (e.g. abyssal demons, gargoyles).', priority: 3 },
+];
+
+const POWER_UNLOCKS = [
+  { name: 'Protect prayers', icon: '🛡️', req: 'Prayer 43', why: 'Protect from Melee/Range/Magic — the biggest survival unlock in the game.', how: 'Train Prayer to 43 (Restless Ghost + gilded altar bones).' },
+  { name: 'Eagle Eye / Mystic Might', icon: '🎯', req: 'Prayer 70', why: '+15% Ranged / Magic accuracy & damage. Standard before Rigour/Augury.', how: 'Prayer 70.' },
+  { name: 'Piety', icon: '⚔️', req: 'Prayer 70 + Knight Waves', why: '+23% melee — the melee training/PvM prayer.', how: 'Complete the Knight Waves training ground (King\'s Ransom).' },
+  { name: 'Rigour & Augury', icon: '🌟', req: 'Prayer 74 / 77 + Song of the Elves', why: '+20% Ranged (Rigour) / Magic (Augury) — endgame DPS prayers.', how: 'Finish Song of the Elves, then unlock from Eluned; train Prayer to 74/77.' },
+  { name: 'Ancient Magicks', icon: '❄️', req: 'Desert Treasure I', why: 'Ice Barrage (freeze + multi-target) — top Magic training & PvM/PvP utility.', how: 'Complete Desert Treasure I; switch books at an altar.' },
+  { name: 'Lunar spellbook', icon: '🌙', req: 'Lunar Diplomacy', why: 'Vengeance, Humidify, NPC Contact, teleports — huge utility.', how: 'Complete Lunar Diplomacy (and Dream Mentor for more).' },
+  { name: 'Arceuus spellbook', icon: '💀', req: 'Kourend favour / A Kingdom Divided', why: 'Thralls (free extra damage), Death Charge, Resurrect, demonic offering.', how: 'Build Arceuus favour; switch at the Arceuus altar.' },
+];
