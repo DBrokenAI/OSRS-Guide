@@ -75,10 +75,60 @@ const UI = (() => {
     if (window.AppBoot) window.AppBoot.refetch();
   }
 
+  // ---------- Grouped navigation ----------
+  // ~10 top-level tabs, each with one or more child sections shown via a sub-nav.
+  const NAV_GROUPS = [
+    { key: 'path',        icon: '🧭', label: 'The Path',     children: [['path', 'The Path']] },
+    { key: 'plan',        icon: '💖', label: 'Plan',         children: [['next', 'Next Up'], ['dailies', 'Dailies'], ['goals', 'Goals'], ['tasks', 'My Tasks']] },
+    { key: 'stats',       icon: '📊', label: 'Stats & Skills', children: [['stats', 'Stats'], ['skills', 'Skills'], ['combat', 'Combat']] },
+    { key: 'quests',      icon: '📜', label: 'Quests',       children: [['quests', 'Quests']] },
+    { key: 'pvm',         icon: '⚔️', label: 'PvM',          children: [['bosses', 'Bosses'], ['slayer', 'Slayer'], ['minigames', 'Minigames'], ['loadouts', 'Loadouts']] },
+    { key: 'wealth',      icon: '💰', label: 'Wealth & Gear', children: [['money', 'Money'], ['gear', 'Gear']] },
+    { key: 'collections', icon: '🏆', label: 'Collections',  children: [['diariestab', 'Diaries'], ['pets', 'Pets'], ['music', 'Music']] },
+    { key: 'ai',          icon: '💬', label: 'Ask AI',       children: [['ai', 'Ask AI']] },
+    { key: 'reference',   icon: '📚', label: 'Reference',    children: [['plugins', 'RuneLite'], ['rules', 'Golden Rules'], ['keys', 'Keybinds']] },
+    { key: 'personal',    icon: '📓', label: 'Personal',     children: [['history', 'History'], ['journal', 'Journal'], ['notes', 'Notes']] },
+  ];
+  const lastChildOfGroup = {};
+
+  function renderNav() {
+    const tabsEl = document.getElementById('tabs');
+    if (!tabsEl) return;
+    tabsEl.innerHTML = `<div class="nav-group">` + NAV_GROUPS.map(g =>
+      `<button class="tab" data-group="${g.key}"><span class="tab-icon">${g.icon}</span> ${g.label}</button>`
+    ).join('') + `</div>`;
+  }
+
+  function groupForSection(name) {
+    return NAV_GROUPS.find(g => g.children.some(c => c[0] === name));
+  }
+
+  function showGroup(key) {
+    const g = NAV_GROUPS.find(x => x.key === key);
+    if (!g) return;
+    showSection(lastChildOfGroup[key] || g.children[0][0]);
+  }
+
+  function renderSubnav(g, activeName) {
+    const el = document.getElementById('subnav');
+    if (!el) return;
+    if (!g || g.children.length <= 1) { el.innerHTML = ''; el.style.display = 'none'; return; }
+    el.style.display = 'flex';
+    el.innerHTML = g.children.map(([sec, label]) =>
+      `<button class="subnav-pill${sec === activeName ? ' active' : ''}" data-section="${sec}"
+        style="padding:6px 14px;border-radius:999px;border:1px solid var(--card-border);cursor:pointer;font-family:var(--font-body);font-weight:600;font-size:13px;
+        background:${sec === activeName ? 'linear-gradient(135deg,var(--pink-500),var(--pink-400))' : 'var(--card-bg-strong)'};
+        color:${sec === activeName ? '#fff' : 'var(--text)'};">${label}</button>`
+    ).join('');
+  }
+
   // ---------- Sections ----------
   function showSection(name) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    const g = groupForSection(name);
+    if (g) lastChildOfGroup[g.key] = name;
+    document.querySelectorAll('#tabs .tab').forEach(t => t.classList.toggle('active', t.dataset.group === (g ? g.key : '')));
     document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s.dataset.section === name));
+    renderSubnav(g, name);
   }
 
   function renderAll() {
@@ -109,6 +159,7 @@ const UI = (() => {
     renderDiariesTab();
     renderMinigames();
     renderPath();
+    renderHistory();
     renderAI();
   }
 
@@ -1524,6 +1575,133 @@ const UI = (() => {
     `;
   }
 
+  // ============ HISTORY (everything you've checked off) ============
+  function deslug(s) {
+    return String(s || '').replace(/^(near_|train_|mg_|lifetime_|endgame_)/, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+  // Resolve any completed id to a friendly name across all datasets.
+  function resolveCompletedName(id) {
+    const q = QUESTS.find(x => x.id === id); if (q) return q.name;
+    const t = (typeof MASTER_TASKS !== 'undefined') && MASTER_TASKS.find(x => x.id === id); if (t) return t.name;
+    const b = (typeof BOSSES !== 'undefined') && BOSSES.find(x => x.id === id); if (b) return b.name;
+    const mg = (typeof MINIGAMES !== 'undefined') && MINIGAMES.find(x => x.id === id); if (mg) return mg.name;
+    return deslug(id);
+  }
+
+  function historyRow(label, onUndo, sub) {
+    return `
+      <div class="task-row done" style="align-items:center;">
+        <div class="task-check checked" style="cursor:default;"></div>
+        <div class="task-body">
+          <div class="task-label" style="text-decoration:none;">${esc(label)}</div>
+          ${sub ? `<div class="task-meta">${esc(sub)}</div>` : ''}
+        </div>
+        <button class="btn btn-soft" style="font-size:12px;padding:4px 12px;" onclick="${onUndo}" title="Uncheck / undo">↩ Uncheck</button>
+      </div>`;
+  }
+
+  function renderHistory() {
+    const el = sectionEl('history');
+    const completedQuests = [...loadCompletedQuests()];
+    const completedRecsSet = loadCompletedRecs();
+    const roadmapDone = [...loadRoadmapDone()];
+    const doneTasks = TaskList.done();
+
+    // Dismissed recs that aren't already shown as completed quests
+    const recEntries = [...completedRecsSet].map(key => {
+      const [, id] = String(key).split(':');
+      return { key, id };
+    }).filter(r => !loadCompletedQuests().has(r.id));
+
+    // Diary checkboxes ticked (scan localStorage)
+    const diaryIds = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('bvels10_diary_') && localStorage.getItem(k) === '1') diaryIds.push(k.slice('bvels10_diary_'.length));
+      }
+    } catch (_) {}
+
+    const log = (typeof Journal !== 'undefined') ? Journal.all().slice(0, 40) : [];
+    const totalDone = completedQuests.length + recEntries.length + roadmapDone.length + doneTasks.length + diaryIds.length;
+
+    const section = (title, items, emptyMsg) => `
+      <h3>${title} (${items.length})</h3>
+      ${items.length ? items.join('') : `<p style="color:var(--text-soft);font-size:13px;">${emptyMsg}</p>`}`;
+
+    el.innerHTML = `
+      <h2>🗂️ History — everything you've checked off</h2>
+      <p style="color:var(--text-soft);">A record of everything marked done across the app. Made a mistake? Hit <strong>↩ Uncheck</strong> on any item to undo it — it'll reappear where it came from. ✨</p>
+      <div class="card" style="background:linear-gradient(135deg,var(--pink-50),#fff8d0);"><strong>${totalDone}</strong> things completed so far 💖</div>
+
+      ${section('📜 Quests & milestones',
+        completedQuests.map(id => historyRow(resolveCompletedName(id), `UI.undoCompletedQuest('${esc(id)}')`)),
+        'No quests or milestones marked done yet.')}
+
+      ${section('💖 Dismissed recommendations',
+        recEntries.map(r => historyRow(resolveCompletedName(r.id), `UI.undoRec('${esc(r.key)}')`, 'was hidden from Next Up')),
+        'No recommendations dismissed.')}
+
+      ${section('🧭 Path steps ticked',
+        roadmapDone.map(id => {
+          let label = id;
+          if (typeof ROADMAP !== 'undefined') for (const ph of ROADMAP) for (const st of ph.steps) if (st.id === id) label = st.label;
+          return historyRow(label, `UI.undoRoadmap('${esc(id)}')`);
+        }),
+        'No Path steps manually checked off.')}
+
+      ${section('✅ Finished to-dos',
+        doneTasks.slice().reverse().map(t => historyRow(t.label, `UI.restoreTask('${esc(t.id)}')`)),
+        'No to-dos completed yet.')}
+
+      ${diaryIds.length ? `
+        <details style="margin-top:14px;">
+          <summary style="cursor:pointer;font-weight:700;color:var(--pink-600);">📔 Diary tasks ticked (${diaryIds.length})</summary>
+          <div style="margin-top:8px;">
+            ${diaryIds.map(id => historyRow(deslug(id), `UI.undoDiary('${esc(id)}')`)).join('')}
+          </div>
+        </details>` : ''}
+
+      ${log.length ? `
+        <h3 style="margin-top:20px;">📓 Activity log</h3>
+        <div class="card">
+          ${log.map(e => `<div style="padding:4px 0;border-bottom:1px solid var(--pink-50);font-size:13px;">${esc(e.text || e.label || '')}</div>`).join('')}
+        </div>` : ''}
+    `;
+  }
+
+  // ---- History undo handlers ----
+  function undoCompletedQuest(id) {
+    const set = loadCompletedQuests(); set.delete(id); saveCompletedQuests(set);
+    // also clear any matching rec key so it isn't double-tracked
+    const recs = loadCompletedRecs();
+    for (const k of [...recs]) if (String(k).split(':')[1] === id) recs.delete(k);
+    saveCompletedRecs(recs);
+    Journal.add('undo', `↩ Un-marked: ${resolveCompletedName(id)}`, false);
+    toast(`↩ Un-marked ${resolveCompletedName(id)}`);
+    renderAll();
+  }
+  function undoRec(key) {
+    const recs = loadCompletedRecs(); recs.delete(key); saveCompletedRecs(recs);
+    toast('↩ Recommendation restored to Next Up');
+    renderAll();
+  }
+  function undoRoadmap(id) {
+    const s = loadRoadmapDone(); s.delete(id); saveRoadmapDone(s);
+    toast('↩ Path step un-checked');
+    renderAll();
+  }
+  function restoreTask(id) {
+    TaskList.toggle(id);
+    toast('↩ To-do moved back to open');
+    renderAll();
+  }
+  function undoDiary(id) {
+    try { localStorage.removeItem('bvels10_diary_' + id); } catch (_) {}
+    toast('↩ Diary task un-ticked');
+    renderAll();
+  }
+
   // ============ AI ASSISTANT ============
   function renderAI() {
     const el = sectionEl('ai');
@@ -2033,6 +2211,8 @@ const UI = (() => {
            showAISettings, onProviderChange, saveAISettings,
            applyAction, applyActions, resolveCompletable,
            resumeLiveSync, toggleAccountMode, toggleRoadmapStep,
+           renderNav, showGroup,
+           undoCompletedQuest, undoRec, undoRoadmap, restoreTask, undoDiary,
            attachImage, handleChatPaste, clearPendingImage,
            renderAllPublic: renderAll };
 })();

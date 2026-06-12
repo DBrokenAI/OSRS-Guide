@@ -42,57 +42,11 @@
 </header>
 
 <div class="layout">
-  <aside class="sidebar" id="tabs">
-    <div class="nav-group">
-      <div class="nav-group-title">For You</div>
-      <button class="tab" data-tab="path"><span class="tab-icon">🧭</span> The Path</button>
-      <button class="tab active" data-tab="next"><span class="tab-icon">💖</span> Next Up</button>
-      <button class="tab" data-tab="ai"><span class="tab-icon">💬</span> Ask AI</button>
-      <button class="tab" data-tab="dailies"><span class="tab-icon">📅</span> Dailies</button>
-      <button class="tab" data-tab="goals"><span class="tab-icon">🎯</span> Goals</button>
-      <button class="tab" data-tab="tasks"><span class="tab-icon">✅</span> My Tasks</button>
-      <button class="tab" data-tab="stats"><span class="tab-icon">📊</span> Stats</button>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-title">Progression</div>
-      <button class="tab" data-tab="quests"><span class="tab-icon">📜</span> Quests</button>
-      <button class="tab" data-tab="combat"><span class="tab-icon">⚔️</span> Combat</button>
-      <button class="tab" data-tab="skills"><span class="tab-icon">🌸</span> Skills</button>
-      <button class="tab" data-tab="bosses"><span class="tab-icon">👑</span> Bosses</button>
-      <button class="tab" data-tab="minigames"><span class="tab-icon">🎮</span> Minigames</button>
-      <button class="tab" data-tab="loadouts"><span class="tab-icon">🎒</span> Loadouts</button>
-      <button class="tab" data-tab="slayer"><span class="tab-icon">💀</span> Slayer</button>
-      <button class="tab" data-tab="diariestab"><span class="tab-icon">📔</span> Diaries</button>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-title">Wealth & Gear</div>
-      <button class="tab" data-tab="money"><span class="tab-icon">💰</span> Money</button>
-      <button class="tab" data-tab="gear"><span class="tab-icon">🛡️</span> Gear</button>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-title">Collections</div>
-      <button class="tab" data-tab="pets"><span class="tab-icon">🐾</span> Pets</button>
-      <button class="tab" data-tab="music"><span class="tab-icon">🎵</span> Music</button>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-title">Reference</div>
-      <button class="tab" data-tab="plugins"><span class="tab-icon">🔌</span> RuneLite</button>
-      <button class="tab" data-tab="rules"><span class="tab-icon">📖</span> Golden Rules</button>
-      <button class="tab" data-tab="keys"><span class="tab-icon">⌨️</span> Keybinds</button>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-title">Personal</div>
-      <button class="tab" data-tab="journal"><span class="tab-icon">📓</span> Journal</button>
-      <button class="tab" data-tab="notes"><span class="tab-icon">📝</span> Notes</button>
-    </div>
-  </aside>
+  <!-- Sidebar tabs are rendered from NAV_GROUPS by UI.renderNav() -->
+  <aside class="sidebar" id="tabs"></aside>
 
   <main id="main">
+    <div id="subnav" style="display:none;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
     <div id="global-search-wrap" style="margin-bottom:14px;">
       <input type="text" id="global-search" placeholder="🔍 search anything — quests, bosses, skills, items…"
         style="width:100%;padding:10px 18px;border-radius:999px;border:1px solid var(--card-border);background:var(--card-bg-strong);font-family:var(--font-body);font-size:14px;outline:none;box-shadow:var(--shadow-soft);">

@@ -36,16 +36,9 @@
   fetchBondPrice();
   setInterval(fetchBondPrice, 30 * 60 * 1000); // refresh every 30 min
 
-  // Tab switching
-  document.getElementById('tabs').addEventListener('click', (e) => {
-    const btn = e.target.closest('.tab');
-    if (!btn) return;
-    UI.showSection(btn.dataset.tab);
-  });
-
   // Pre-create sections so UI.showSection works
   ['next','tasks','stats','quests','combat','skills','bosses','money','gear','diaries','plugins','rules','keys','journal','notes',
-   'dailies','goals','pets','music','slayer','loadouts','diariestab','minigames','path','ai']
+   'dailies','goals','pets','music','slayer','loadouts','diariestab','minigames','path','history','ai']
     .forEach(name => {
       const sec = document.createElement('section');
       sec.className = 'section' + (name === 'next' ? ' active' : '');
@@ -53,6 +46,19 @@
       sec.innerHTML = '<h2 style="color:var(--text-soft);">Loading… ✨</h2>';
       document.getElementById('main').appendChild(sec);
     });
+
+  // Render the grouped sidebar nav, then wire navigation.
+  UI.renderNav();
+  document.getElementById('tabs').addEventListener('click', (e) => {
+    const btn = e.target.closest('.tab');
+    if (btn) UI.showGroup(btn.dataset.group);
+  });
+  const subnavEl = document.getElementById('subnav');
+  if (subnavEl) subnavEl.addEventListener('click', (e) => {
+    const pill = e.target.closest('.subnav-pill');
+    if (pill) UI.showSection(pill.dataset.section);
+  });
+  UI.showSection('next'); // sets active group + sub-nav
 
   // Buttons — null-safe so a stale/old index.html (missing a newer button)
   // can never throw and abort the whole boot.
