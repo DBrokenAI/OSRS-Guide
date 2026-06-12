@@ -1471,10 +1471,13 @@ const UI = (() => {
 
   function toggleRoadmapStep(id) {
     const s = loadRoadmapDone();
+    const nowDone = !s.has(id);
     if (s.has(id)) s.delete(id); else s.add(id);
     saveRoadmapDone(s);
+    toast(nowDone ? '✅ Checked off your Path' : '↩ Un-checked');
     renderPath();
     renderNext();
+    renderHistory();
   }
 
   function questDoneByName(completed, name) {
@@ -1535,17 +1538,23 @@ const UI = (() => {
         const done = roadmapStepDone(st, ctx);
         const isCurrent = st === current;
         const auto = roadmapStepAutoDone(st, ctx);
-        const icon = done ? '✅' : isCurrent ? '▶️' : '⬜';
+        // auto===true means your stats/quests/KC already prove it — locked done.
+        // Otherwise it's yours to check off (manual step, or an override).
+        const canToggle = auto !== true;
+        const toggleAttr = canToggle ? `onclick="UI.toggleRoadmapStep('${st.id}')" style="cursor:pointer;"` : `title="Auto-completed from your stats, quests or boss KC" style="cursor:default;"`;
+        const hint = !done && canToggle
+          ? '<span style="color:var(--text-faint);">done it? tap to check off · </span>'
+          : (done && auto === true ? '<span style="color:var(--text-faint);">✓ auto-completed from your account · </span>' : '');
         return `
-          <div class="card" style="padding:10px 14px;margin:6px 0;${isCurrent ? 'border:2px solid var(--pink-400);box-shadow:0 2px 14px rgba(232,56,138,0.18);' : ''}${done ? 'opacity:.65;' : ''}">
-            <div style="display:flex;align-items:flex-start;gap:10px;">
-              <div style="font-size:18px;cursor:pointer;user-select:none;" onclick="UI.toggleRoadmapStep('${st.id}')" title="${done ? 'Mark not done' : 'Mark done'}">${icon}</div>
-              <div style="flex:1;">
+          <div class="card" style="padding:10px 14px;margin:6px 0;${isCurrent ? 'border:2px solid var(--pink-400);box-shadow:0 2px 14px rgba(232,56,138,0.18);' : ''}${done ? 'opacity:.7;' : ''}">
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+              <div class="task-check${done ? ' checked' : ''}" ${toggleAttr} title="${done ? (canToggle ? 'Mark not done' : 'Auto-completed from your account') : 'Mark done'}"></div>
+              <div style="flex:1;${canToggle ? 'cursor:pointer;' : ''}" ${canToggle ? `onclick="UI.toggleRoadmapStep('${st.id}')"` : ''}>
                 <div style="font-weight:700;${done ? 'text-decoration:line-through;' : ''}">${esc(st.label)}${isCurrent ? ' <span class="tag gold" style="font-size:10px;">YOU ARE HERE</span>' : ''}</div>
                 <div style="color:var(--text-soft);font-size:13px;margin-top:2px;">${esc(st.detail || '')}</div>
                 <div style="margin-top:4px;font-size:12px;">
-                  ${auto === null ? '<span style="color:var(--text-faint);">tap the box to check off · </span>' : ''}
-                  ${st.wiki ? `<a class="wiki-link" target="_blank" href="${WIKI(st.wiki)}">Wiki →</a>` : ''}
+                  ${hint}
+                  ${st.wiki ? `<a class="wiki-link" target="_blank" href="${WIKI(st.wiki)}" onclick="event.stopPropagation();">Wiki →</a>` : ''}
                 </div>
               </div>
             </div>
