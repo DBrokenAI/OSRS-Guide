@@ -46,6 +46,7 @@ const SKILL_META = [
   { id: 'runecraft',    name: 'Runecraft',    icon: '🌀' },
   { id: 'hunter',       name: 'Hunter',       icon: '🦝' },
   { id: 'construction', name: 'Construction', icon: '🏠' },
+  { id: 'sailing',      name: 'Sailing',      icon: '⛵' },
 ];
 
 // ---------- XP table (level → cumulative XP) ----------
@@ -222,6 +223,11 @@ const QUESTS = [
     reqs: {}, xpRewards: { herblore: 250 },
     rewards: ['250 Herblore XP (level 3) — UNLOCKS HERBLORE'],
     why: '🔥 Without this you literally cannot train Herblore. Do it the day you become a member.', priority: 1 },
+
+  { id: 'pandemonium', name: 'Pandemonium', members: true, length: 'Short',
+    reqs: {}, xpRewards: { sailing: 400 },
+    rewards: ['400 Sailing XP — UNLOCKS SAILING (the 24th skill)', 'A raft, spyglass, repair kits, sawmill coupons'],
+    why: '⛵ Unlocks the Sailing skill. Novice quest, no requirements — do it to start sailing.', priority: 2 },
 
   { id: 'tree_gnome_village', name: 'Tree Gnome Village', members: true, length: 'Medium',
     reqs: {}, practicalCombat: 25,
@@ -572,6 +578,14 @@ const ALL_QUESTS_FLAT = [
   { name: "Twilight's Promise", members: true, tier: 'experienced' },
   { name: "Until Then", members: true, tier: 'novice' },
   { name: "While Guthix Sleeps", members: true, tier: 'grandmaster' },
+  // Newer quests (2024-2025)
+  { name: "Pandemonium", members: true, tier: 'novice' },
+  { name: "Prying Times", members: true, tier: 'novice' },
+  { name: "Current Affairs", members: true, tier: 'novice' },
+  { name: "Perilous Moons", members: true, tier: 'intermediate' },
+  { name: "The Heart of Darkness", members: true, tier: 'experienced' },
+  { name: "The Final Dawn", members: true, tier: 'master' },
+  { name: "Defender of Varrock", members: true, tier: 'experienced' },
 ];
 
 // Slugify quest name → id
@@ -2070,6 +2084,23 @@ const SKILL_TIERS = {
     { from: 74, to: 99, name: 'Alt: Gnome benches / mythical capes', where: 'POH',
       xpHr: '600k', why: 'Top-tier speed XP. Save up first.', reqs: '74 Construction' },
   ],
+
+  sailing: [
+    { from: 1,  to: 30, name: 'Courier tasks + Sailing quests', where: 'Port Sarim / Musa Point / Pandemonium',
+      xpHr: '~10k', why: 'Deliver cargo between ports. Do Pandemonium, Prying Times & Current Affairs for big early XP. Ocean encounters (glows, winds, castaways) give passive XP while you sail.',
+      reqs: 'Pandemonium quest' },
+    { from: 30, to: 99, name: '🔥 Barracuda Trials (NEW META)', where: 'Trials docks',
+      xpHr: '20k → 200k', why: 'THE fastest Sailing XP from 30+. Three difficulty tiers that scale hard with rank — ~80k at 55, ~144k at 72, 184k+ at Marlin rank with a crystal extractor + rosewood hull.',
+      reqs: '30 Sailing' },
+    { from: 15, to: 99, name: 'Alt: Shipwreck salvaging (AFK-ish)', where: 'Open-ocean wrecks',
+      xpHr: '2k → scaling', why: 'Low-intensity gathering — relaxing alternative to the trials.', reqs: '15 Sailing' },
+    { from: 46, to: 62, name: 'Alt: Summer Shore Courier', where: 'Summer Shore',
+      xpHr: '~30k', why: 'A solid courier route while you build toward better trials gear.', reqs: '46 Sailing' },
+    { from: 62, to: 76, name: 'Alt: Rellekka / Prifddinas Courier', where: 'Rellekka / Prifddinas',
+      xpHr: '55k → 70k', why: 'Higher-paying courier routes if you prefer routes over trials.', reqs: '62 Sailing' },
+    { from: 76, to: 99, name: 'Lunar Isle Courier (top courier route)', where: 'Lunar Isle',
+      xpHr: '120k → 145k', why: 'The best courier route — great XP without the click-intensity of trials.', reqs: '76 Sailing' },
+  ],
 };
 
 // ==========================================================
@@ -2315,6 +2346,32 @@ const BOSSES = [
     reqs: { combat: 110, skill: { strength: 75, ranged: 75 } }, stats: '12 waves of escalating difficulty',
     location: 'Fortis Colosseum (Varlamore)', loot: 'Sunfire Fanatic armour, Echo crystals, Tonalztic of Ralos, Sol Heredit pet',
     why: 'Sunfire armour is great for melee; Echo upgrades are top-tier.', wiki: 'Fortis Colosseum' },
+
+  // ----- NEWEST CONTENT (2024-2025) -----
+  { id: 'royal_titans', name: 'The Royal Titans', icon: '❄️', tier: 'mid', order: 37,
+    reqs: { combat: 85 }, stats: 'Duo (or solo) — alternate the fire/ice mechanics',
+    location: 'Asgarnian Ice Dungeon', loot: 'Giantsoul amulet, Deadeye/Mystic prayer scrolls, mid-game loot',
+    why: 'Newer, accessible duo boss — a good mid-game stepping stone.', wiki: 'The Royal Titans' },
+  { id: 'amoxliatl', name: 'Amoxliatl', icon: '🧊', tier: 'mid', order: 39,
+    reqs: { combat: 75, skill: { magic: 70 } }, questNote: 'The Heart of Darkness',
+    stats: 'Magic, fairly accessible — good first Varlamore boss',
+    location: 'Ruins of Tapoyauik (Varlamore)', loot: 'Glacial temotli (magic weapon), Pendant of ates, Tonalztic parts',
+    why: 'Low-barrier Varlamore magic boss with useful drops.', wiki: 'Amoxliatl' },
+  { id: 'hueycoatl', name: 'The Hueycoatl', icon: '🐍', tier: 'endgame', order: 103,
+    reqs: { combat: 90 }, questNote: 'Children of the Sun',
+    stats: 'Multi-combat group boss — break the body segments',
+    location: 'Darkfrost (Varlamore)', loot: 'Hueycoatl hide → armour, Tome of earth, Huasca seeds',
+    why: 'Fun group world-boss; the hide armour is a solid mid-tier upgrade.', wiki: 'The Hueycoatl' },
+  { id: 'yama', name: 'Yama', icon: '😈', tier: 'endgame', order: 106,
+    reqs: { combat: 110, skill: { magic: 82 } }, questNote: 'A Kingdom Divided',
+    stats: 'Duo/solo — a step up from the DT2 bosses (Augury recommended)',
+    location: 'Chasm of Fire', loot: 'Oathplate armour (top-tier melee), Soulflame horn, Purifying sigil',
+    why: '🔥 Oathplate is among the best melee armour in the game. Post-DT2 difficulty.', wiki: 'Yama' },
+  { id: 'doom_of_mokhaiotl', name: 'Doom of Mokhaiotl', icon: '🌀', tier: 'endgame', order: 124,
+    reqs: { combat: 110, skill: { ranged: 90, hitpoints: 90 } }, questNote: 'The Final Dawn',
+    stats: 'Solo delve — comparable to Corrupted Gauntlet, scaling to very hard',
+    location: 'Ruins of Mokhaiotl', loot: 'Avernic treads (BIS melee boots), Eye of ayak, Mokhaiotl cloth, Dom pet',
+    why: '🔥 Avernic treads are best-in-slot melee boots. One of the hardest solo encounters.', wiki: 'Doom of Mokhaiotl' },
 ];
 
 // ==========================================================

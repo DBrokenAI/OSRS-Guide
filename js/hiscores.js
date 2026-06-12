@@ -20,7 +20,7 @@ const Hiscores = (() => {
     fishing: 'fishing', firemaking: 'firemaking', crafting: 'crafting',
     smithing: 'smithing', mining: 'mining', herblore: 'herblore', agility: 'agility',
     thieving: 'thieving', slayer: 'slayer', farming: 'farming', runecraft: 'runecraft',
-    hunter: 'hunter', construction: 'construction',
+    hunter: 'hunter', construction: 'construction', sailing: 'sailing',
   };
 
   async function tryFetch(url) {
@@ -79,6 +79,8 @@ const Hiscores = (() => {
     cox: ['chambers_of_xeric', 'chambers_of_xeric_challenge_mode'],
     tob: ['theatre_of_blood', 'theatre_of_blood_hard_mode'],
     inferno: 'tzkal_zuk', colosseum: 'sol_heredit',
+    royal_titans: 'the_royal_titans', amoxliatl: 'amoxliatl', hueycoatl: 'the_hueycoatl',
+    yama: 'yama', doom_of_mokhaiotl: 'doom_of_mokhaiotl',
   };
 
   // Pull boss KC + clue-scroll counts out of a WOM snapshot `data` object.

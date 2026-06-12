@@ -616,8 +616,8 @@ const Recommender = (() => {
     goals.push({
       id: 'lifetime_max_cape', type: 'master',
       icon: '👑', cat: 'milestone',
-      title: `Max Cape — ${has99s}/23 skills at 99`,
-      detail: `The ultimate stats goal. Multi-year for most players. Focus on the slowest skills: Slayer, Agility, Runecrafting, Construction. Total level ${totalLevel}/2277.`,
+      title: `Max Cape — ${has99s}/24 skills at 99`,
+      detail: `The ultimate stats goal. Multi-year for most players. Focus on the slowest skills: Slayer, Agility, Runecrafting, Construction, Sailing. Total level ${totalLevel}/2376.`,
       wiki: WIKI('Max cape'),
     });
 
