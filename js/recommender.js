@@ -59,9 +59,17 @@ const Recommender = (() => {
     return true;
   }
 
+  // In F2P mode, hide members-only content. Quests carry a `members` flag;
+  // everything else opts in with `f2p: true`.
+  function passesMode(item, useMembersFlag) {
+    if (!AccountMode.isF2P()) return true;
+    return useMembersFlag ? !item.members : !!item.f2p;
+  }
+
   function readyMasterTasks(stats, completedIds) {
     return MASTER_TASKS
       .filter(t => !completedIds.has(t.id))
+      .filter(t => passesMode(t, false))
       .filter(t => masterTaskQualifies(t, stats, completedIds))
       .sort((a, b) => (a.priority || 9) - (b.priority || 9));
   }
@@ -69,11 +77,13 @@ const Recommender = (() => {
   // ---------- Minigames (gated on skill/combat reqs from live stats) ----------
   function readyMinigames(stats, completedIds) {
     return (typeof MINIGAMES === 'undefined' ? [] : MINIGAMES)
+      .filter(m => passesMode(m, false))
       .filter(m => masterTaskQualifies(m, stats, completedIds))
       .sort((a, b) => (a.priority || 9) - (b.priority || 9));
   }
   function lockedMinigames(stats, completedIds) {
     return (typeof MINIGAMES === 'undefined' ? [] : MINIGAMES)
+      .filter(m => passesMode(m, false))
       .filter(m => !masterTaskQualifies(m, stats, completedIds))
       .map(m => Object.assign({}, m, { _gap: readinessGap(m.reqs, stats, completedIds) }))
       .sort((a, b) => a._gap.total - b._gap.total || (a.priority || 9) - (b.priority || 9));
@@ -123,6 +133,7 @@ const Recommender = (() => {
   function nearMasterTasks(stats, completedIds) {
     return MASTER_TASKS
       .filter(t => !completedIds.has(t.id))
+      .filter(t => passesMode(t, false))
       .filter(t => !masterTaskQualifies(t, stats, completedIds))
       .map(t => ({ t, gap: readinessGap(t.reqs, stats, completedIds) }))
       .filter(x => x.gap.total > 0)
@@ -133,6 +144,7 @@ const Recommender = (() => {
   function nearQuests(stats, completedIds) {
     return QUESTS
       .filter(q => !completedIds.has(q.id))
+      .filter(q => passesMode(q, true))
       .filter(q => !questQualifies(q, stats, completedIds))
       .map(q => {
         const reqs = Object.assign({}, q.reqs, q.practicalCombat ? { combat: q.practicalCombat } : {});
@@ -146,6 +158,7 @@ const Recommender = (() => {
   function readyQuests(stats, completedIds) {
     return QUESTS
       .filter(q => !completedIds.has(q.id))
+      .filter(q => passesMode(q, true))
       .filter(q => questQualifies(q, stats, completedIds))
       .sort((a, b) => (a.priority || 9) - (b.priority || 9));
   }
@@ -153,6 +166,7 @@ const Recommender = (() => {
   function lockedQuests(stats, completedIds) {
     return QUESTS
       .filter(q => !completedIds.has(q.id))
+      .filter(q => passesMode(q, true))
       .filter(q => !questQualifies(q, stats, completedIds));
   }
 
@@ -197,11 +211,11 @@ const Recommender = (() => {
   }
 
   function readyBosses(stats) {
-    return BOSSES.filter(b => bossReady(b, stats))
+    return BOSSES.filter(b => passesMode(b, false) && bossReady(b, stats))
       .sort((a, b) => (a.order || 0) - (b.order || 0));
   }
   function lockedBosses(stats) {
-    return BOSSES.filter(b => !bossReady(b, stats))
+    return BOSSES.filter(b => passesMode(b, false) && !bossReady(b, stats))
       .map(b => Object.assign({}, b, {
         _gap: readinessGap({ combat: b.reqs?.combat, skill: b.reqs?.skill }, stats, new Set()),
       }))
@@ -302,7 +316,7 @@ const Recommender = (() => {
       });
     }
 
-    if (!completedQuestIds.has('druidic_ritual')) {
+    if (!completedQuestIds.has('druidic_ritual') && !AccountMode.isF2P()) {
       recs.push({
         id: 'druidic_ritual', type: 'quest',
         priority: 1, icon: '🌿', tag: 'gold', cat: 'quest',
@@ -378,6 +392,7 @@ const Recommender = (() => {
     for (const q of QUESTS) {
       if (!q.xpRewards) continue;
       if (completedQuestIds.has(q.id)) continue;
+      if (!passesMode(q, true)) continue;
       if (!questQualifies(q, stats, completedQuestIds)) continue;
       // Does the quest target a skill she's still leveling (lvl < 70)?
       const helpful = Object.entries(q.xpRewards).some(([sid, xp]) => {

@@ -26,6 +26,7 @@ const UI = (() => {
   // ---------- Header ----------
   function renderHeader() {
     if (!currentStats) return;
+    syncAccountModeBtn();
     document.getElementById('player-name').textContent = currentStats.name || '—';
     const skillsByMeta = Object.fromEntries(SKILL_META.filter(m => m.combat).map(m => [m.id, currentStats.skills[m.id]?.level || 1]));
     const cb = combatLevel(skillsByMeta);
@@ -48,6 +49,24 @@ const UI = (() => {
         `updated ${minsAgo}m ago`;
     }
   }
+
+  function syncAccountModeBtn() {
+    const btn = document.getElementById('account-mode-btn');
+    if (!btn) return;
+    const f2p = AccountMode.isF2P();
+    btn.textContent = f2p ? '🆓' : '🌍';
+    btn.title = f2p ? 'F2P mode — showing F2P-only content. Click for all (members).' : 'Showing all (members) content. Click for F2P-only.';
+    btn.style.background = f2p ? 'linear-gradient(135deg,#7ad48a,#bfe9c4)' : 'linear-gradient(135deg,#9be7a0,#ffd6c2)';
+  }
+
+  function toggleAccountMode() {
+    const mode = AccountMode.toggle();
+    syncAccountModeBtn();
+    toast(mode === 'f2p' ? '🆓 F2P mode — members content hidden' : '🌍 Showing all content (members)');
+    renderAll();
+  }
+
+  // (account-mode button kept in sync from renderHeader)
 
   function resumeLiveSync() {
     if (!confirm('Switch back to live Hiscores sync? Your typed/AI-set levels will be replaced by what the Hiscores report.')) return;
@@ -595,9 +614,13 @@ const UI = (() => {
   function renderSkills() {
     const el = sectionEl('skills');
     const nonCombat = SKILL_META.filter(m => !m.combat);
+    const f2pNote = AccountMode.isF2P()
+      ? `<p style="background:var(--pink-50);border:1px solid var(--pink-200);border-radius:10px;padding:8px 12px;font-size:13px;color:var(--text-soft);">🆓 <strong>F2P mode:</strong> Agility, Herblore, Farming, Hunter, Construction, Thieving (most), Fletching and Slayer are members-only — the methods below show the full game; ignore members methods until you subscribe.</p>`
+      : '';
     el.innerHTML = `
       <h2>🌸 Skills</h2>
       <p style="color:var(--text-soft);">Click any skill to see the level-by-level training plan. Your current tier is highlighted. ✨</p>
+      ${f2pNote}
       ${nonCombat.map(m => skillTierBlock(m.id)).join('')}
     `;
   }
@@ -677,11 +700,14 @@ const UI = (() => {
 
   function renderMoney() {
     const el = sectionEl('money');
+    const f2p = AccountMode.isF2P();
     // Top money makers first (highest gp/hr). Starter/one-time methods fall to the bottom.
-    const ranked = MONEY_METHODS.slice().sort((a, b) => moneyValue(b) - moneyValue(a));
+    const ranked = MONEY_METHODS.slice()
+      .filter(m => !f2p || m.f2p)
+      .sort((a, b) => moneyValue(b) - moneyValue(a));
     el.innerHTML = `
-      <h2>💰 Top Money Makers</h2>
-      <p style="color:var(--text-soft);">Ranked by gp/hr — best earners first. Check the <strong>Reqs</strong> to see what you can do at your level. ✨</p>
+      <h2>💰 Top Money Makers${f2p ? ' <span class="tag green" style="font-size:12px;vertical-align:middle;">F2P</span>' : ''}</h2>
+      <p style="color:var(--text-soft);">Ranked by gp/hr — best earners first. Check the <strong>Reqs</strong> to see what you can do at your level. ✨${f2p ? ' <em>Showing F2P methods only.</em>' : ''}</p>
       ${ranked.map((m, i) => {
         const isTop = i < 3 && moneyValue(m) > 0;
         return `
@@ -1854,7 +1880,7 @@ const UI = (() => {
            toggleChatPanel, renderFloatingChat, chatSuggest, chatSend,
            showAISettings, onProviderChange, saveAISettings,
            applyAction, applyActions, resolveCompletable,
-           resumeLiveSync,
+           resumeLiveSync, toggleAccountMode,
            attachImage, handleChatPaste, clearPendingImage,
            renderAllPublic: renderAll };
 })();

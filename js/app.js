@@ -67,6 +67,7 @@
   document.getElementById('manual-btn').addEventListener('click', () => UI.showManualEntry());
   document.getElementById('quests-btn').addEventListener('click', () => UI.showBulkQuestEditor());
   document.getElementById('ai-settings-btn').addEventListener('click', () => UI.showAISettings());
+  document.getElementById('account-mode-btn').addEventListener('click', () => UI.toggleAccountMode());
   document.getElementById('panic-btn').addEventListener('click', () => UI.showPanic());
   document.getElementById('bored-btn').addEventListener('click', () => UI.showBored());
   document.getElementById('global-search').addEventListener('input', () => UI.handleSearch());

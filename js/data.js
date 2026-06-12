@@ -7,6 +7,20 @@
 
 const WIKI = (page) => 'https://oldschool.runescape.wiki/w/' + encodeURIComponent(page.replace(/ /g, '_'));
 
+// ---------- Account mode (all vs F2P) ----------
+// When 'f2p', recommendations/tabs hide members-only content.
+const AccountMode = (() => {
+  const KEY = 'bvels10_account_mode';
+  let mode = 'all';
+  try { mode = localStorage.getItem(KEY) || 'all'; } catch (_) {}
+  return {
+    get: () => mode,
+    isF2P: () => mode === 'f2p',
+    set: (m) => { mode = (m === 'f2p' ? 'f2p' : 'all'); try { localStorage.setItem(KEY, mode); } catch (_) {} },
+    toggle: () => { mode = (mode === 'f2p' ? 'all' : 'f2p'); try { localStorage.setItem(KEY, mode); } catch (_) {} return mode; },
+  };
+})();
+
 // ---------- Skill display ----------
 const SKILL_META = [
   { id: 'attack',       name: 'Attack',       icon: '⚔️',  combat: true  },
@@ -573,7 +587,7 @@ function questNameToId(name) {
 const MASTER_TASKS = [
 
   // ----- STARTER (no reqs, do this first day) -----
-  { id: 'stronghold_security', category: 'starter', icon: '🛡️', priority: 1,
+  { id: 'stronghold_security', category: 'starter', icon: '🛡️', priority: 1, f2p: true,
     name: 'Stronghold of Security — free 10,000 gp + boots',
     reqs: {},
     why: 'Free 10K gp + Fancy Boots or Fighter Boots (str bonus). Roughly 30 minutes, no combat needed. Read the dialogue — it teaches account security.',
@@ -1624,14 +1638,14 @@ const MASTER_TASKS = [
     how: 'Wilderness Mage Arena II — fight powerful spell-immunes.',
     wiki: 'Mage Arena II' },
 
-  { id: 'romeo_juliet_quest', category: 'quest', icon: '💔', priority: 3,
+  { id: 'romeo_juliet_quest', category: 'quest', icon: '💔', priority: 3, f2p: true,
     name: 'Romeo & Juliet — easy 5 QP',
     reqs: {},
     why: 'Required for Quest Cape eventually. 5 min, no combat. Buy a Cadava potion in Varrock.',
     how: 'Talk to Romeo near Varrock fountain.',
     wiki: 'Romeo & Juliet' },
 
-  { id: 'x_marks_the_spot', category: 'quest', icon: '🗺️', priority: 3,
+  { id: 'x_marks_the_spot', category: 'quest', icon: '🗺️', priority: 3, f2p: true,
     name: 'X Marks the Spot — Lumby teleports unlock',
     reqs: {},
     why: 'F2P. Reward: Lumbridge teleport scroll + 1 QP. Required for Lumbridge Diary.',
@@ -2307,15 +2321,15 @@ const BOSSES = [
 // MONEY MAKING — sorted from low reqs to high
 // ==========================================================
 const MONEY_METHODS = [
-  { name: 'Stronghold of Security (one-time 10K)', gpHr: '—',
+  { name: 'Stronghold of Security (one-time 10K)', f2p: true, gpHr: '—',
     reqs: 'None', summary: 'Complete all 4 floors → 10K gp + Fancy/Fighter boots. 30 min one-time.',
     wiki: 'Stronghold_of_Security' },
 
-  { name: 'Killing Chickens (feathers)', gpHr: '50k',
+  { name: 'Killing Chickens (feathers)', f2p: true, gpHr: '50k',
     reqs: 'None', summary: 'Lumbridge chickens drop feathers (~10 gp each). Combat XP + steady income.',
     wiki: 'Chicken' },
 
-  { name: 'Selling Cowhides', gpHr: '80k',
+  { name: 'Selling Cowhides', f2p: true, gpHr: '80k',
     reqs: 'None', summary: 'Kill cows at Lumbridge, sell hides at GE (~50 gp each).',
     wiki: 'Cowhide' },
 
@@ -2323,7 +2337,7 @@ const MONEY_METHODS = [
     reqs: '33 Magic + Telekinetic Grab', summary: 'Telegrab wine from Asgarnia altar. Risky if not paying attention.',
     wiki: 'Telekinetic_Grab' },
 
-  { name: 'Tanning Cowhides for others', gpHr: '60k',
+  { name: 'Tanning Cowhides for others', f2p: true, gpHr: '60k',
     reqs: 'None', summary: 'Buy hides → tan at Al Kharid → resell. Margins via GE flips.',
     wiki: 'Cowhide' },
 
@@ -2450,7 +2464,7 @@ const MINIGAMES = [
     how: 'Yanille. Use absorption + overload potions to AFK. Imbue gear with the points.',
     wiki: 'Nightmare Zone' },
 
-  { id: 'pest_control', name: 'Pest Control', icon: '🐛', category: 'combat', priority: 2,
+  { id: 'pest_control', name: 'Pest Control', icon: '🐛', category: 'combat', priority: 2, f2p: true,
     reqs: { combat: 40 },
     grows: 'Combat (any style)', unlocks: 'Void Knight set — cheap, near-BiS Ranged/Mage gear', gp: '—',
     why: 'Commendation points buy the Void Knight set: extremely cheap, powerful Ranged & Mage armour. Also fast combat XP.',
