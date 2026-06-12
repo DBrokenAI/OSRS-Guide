@@ -1,7 +1,7 @@
 /* ==========================================================
    Service worker — basic offline cache for the guide.
    ========================================================== */
-const CACHE = 'osrs-guide-v14';
+const CACHE = 'osrs-guide-v15';
 const ASSETS = [
   './',
   './index.html',

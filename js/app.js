@@ -54,24 +54,28 @@
       document.getElementById('main').appendChild(sec);
     });
 
-  // Buttons
-  document.getElementById('refresh-btn').addEventListener('click', () => {
+  // Buttons — null-safe so a stale/old index.html (missing a newer button)
+  // can never throw and abort the whole boot.
+  const on = (id, evt, fn) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener(evt, fn);
+  };
+
+  on('refresh-btn', 'click', () => {
     const u = document.getElementById('username-input').value.trim();
     if (u) startForUser(u);
   });
-
-  document.getElementById('username-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') document.getElementById('refresh-btn').click();
+  on('username-input', 'keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('refresh-btn')?.click();
   });
-
-  document.getElementById('manual-btn').addEventListener('click', () => UI.showManualEntry());
-  document.getElementById('quests-btn').addEventListener('click', () => UI.showBulkQuestEditor());
-  document.getElementById('ai-settings-btn').addEventListener('click', () => UI.showAISettings());
-  document.getElementById('account-mode-btn').addEventListener('click', () => UI.toggleAccountMode());
-  document.getElementById('panic-btn').addEventListener('click', () => UI.showPanic());
-  document.getElementById('bored-btn').addEventListener('click', () => UI.showBored());
-  document.getElementById('global-search').addEventListener('input', () => UI.handleSearch());
-  document.getElementById('chat-fab').addEventListener('click', () => UI.toggleChatPanel());
+  on('manual-btn', 'click', () => UI.showManualEntry());
+  on('quests-btn', 'click', () => UI.showBulkQuestEditor());
+  on('ai-settings-btn', 'click', () => UI.showAISettings());
+  on('account-mode-btn', 'click', () => UI.toggleAccountMode());
+  on('panic-btn', 'click', () => UI.showPanic());
+  on('bored-btn', 'click', () => UI.showBored());
+  on('global-search', 'input', () => UI.handleSearch());
+  on('chat-fab', 'click', () => UI.toggleChatPanel());
 
   async function startForUser(username) {
     UI.toast(`✨ Fetching ${username}'s stats…`);
