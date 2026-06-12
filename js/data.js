@@ -2494,6 +2494,37 @@ const MINIGAMES = [
 ];
 
 // ==========================================================
+// CLUE SCROLLS (Treasure Trails) — steady side activity + money/cosmetics.
+// womKey matches the WiseOldMan activity key so we can show your completed count.
+// ==========================================================
+const CLUES = [
+  { tier: 'Beginner', icon: '🗺️', f2p: true, womKey: 'beginner', steps: '1–3',
+    source: 'Low-level monsters, mining, fishing, woodcutting, etc.',
+    rewards: 'Mind/black/leather starter gear, half keys, useful early loot',
+    why: 'Tutorial-tier clues — fast and they teach the mechanics.' },
+  { tier: 'Easy', icon: '📜', f2p: true, womKey: 'easy', steps: '2–4',
+    source: 'Low-level monsters (goblins, etc.), H.A.M. members',
+    rewards: 'God pages → god books, black/blue wizard sets, team capes, cosmetics',
+    why: 'God books (in-combat prayer/stat boosts) are a genuinely useful unlock.' },
+  { tier: 'Medium', icon: '📜', f2p: false, womKey: 'medium', steps: '3–5',
+    source: 'Mid-level monsters, H.A.M., guards',
+    rewards: 'Smiling/frowning relics, climbing boots (g), adventurer/holy cosmetics',
+    why: 'Steady gp plus some quality-of-life cosmetics.' },
+  { tier: 'Hard', icon: '📜', f2p: false, womKey: 'hard', steps: '4–6',
+    source: 'Higher monsters (greater demons, black demons, etc.)',
+    rewards: '🔥 Ranger boots (cheap top-tier ranged boots), holy sandals, dragon ornament kits, 3rd age (rare)',
+    why: 'Ranger boots alone make Hard clues worth grinding.' },
+  { tier: 'Elite', icon: '📜', f2p: false, womKey: 'elite', steps: '5–7',
+    source: 'Tough monsters + skilling at high level',
+    rewards: '🔥 3rd age, gilded armour, dragon/occult ornament kits, fancy cosmetics',
+    why: 'Big gp ceiling — 3rd age pieces are worth tens to hundreds of millions.' },
+  { tier: 'Master', icon: '🧭', f2p: false, womKey: 'master', steps: '6–8',
+    source: 'Hardest monsters; combine a Hard + Elite reward for a chance',
+    rewards: '🔥 3rd age, Bloodhound pet, occult/dragon ornament kits, ankou outfit',
+    why: 'Hardest trails, best loot ceiling, and the Bloodhound pet.' },
+];
+
+// ==========================================================
 // RUNELITE PLUGINS — essentials for beginners
 // ==========================================================
 const PLUGINS = [

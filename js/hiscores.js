@@ -63,9 +63,46 @@ const Hiscores = (() => {
     return { skills, totalLevel, totalXp, fetchedAt: Date.now(), name: json.name };
   }
 
+  // Our boss id → WiseOldMan boss metric key(s). Arrays are summed.
+  const BOSS_WOM_MAP = {
+    bryophyta: 'bryophyta', obor: 'obor', scurrius: 'scurrius', giant_mole: 'giant_mole',
+    sarachnis: 'sarachnis', barrows: 'barrows_chests', kbd: 'king_black_dragon',
+    dks: ['dagannoth_rex', 'dagannoth_prime', 'dagannoth_supreme'], kalphite_queen: 'kalphite_queen',
+    moons_of_peril: 'lunar_chests', vorkath: 'vorkath', zulrah: 'zulrah',
+    grotesque_guardians: 'grotesque_guardians', abyssal_sire: 'abyssal_sire', kraken: 'kraken',
+    cerberus: 'cerberus', araxxor: 'araxxor', thermo: 'thermonuclear_smoke_devil',
+    alch_hydra: 'alchemical_hydra', bandos: 'general_graardor', armadyl: 'kreearra',
+    saradomin: 'commander_zilyana', zamorak: 'kril_tsutsaroth', nex: 'nex',
+    vardorvis: 'vardorvis', duke: 'duke_sucellus', leviathan: 'the_leviathan', whisperer: 'whisperer',
+    corp: 'corporeal_beast', nightmare: 'nightmare', phosanis: 'phosanis_nightmare',
+    toa: ['tombs_of_amascut', 'tombs_of_amascut_expert'],
+    cox: ['chambers_of_xeric', 'chambers_of_xeric_challenge_mode'],
+    tob: ['theatre_of_blood', 'theatre_of_blood_hard_mode'],
+    inferno: 'tzkal_zuk', colosseum: 'sol_heredit',
+  };
+
+  // Pull boss KC + clue-scroll counts out of a WOM snapshot `data` object.
+  function parseWomExtras(data) {
+    const bossKc = {};
+    const bosses = data.bosses || {};
+    const kc = (key) => { const b = bosses[key]; return b && b.kills > 0 ? b.kills : 0; };
+    for (const [id, key] of Object.entries(BOSS_WOM_MAP)) {
+      const total = Array.isArray(key) ? key.reduce((s, k) => s + kc(k), 0) : kc(key);
+      if (total > 0) bossKc[id] = total;
+    }
+    const clues = {};
+    const acts = data.activities || {};
+    for (const tier of ['beginner', 'easy', 'medium', 'hard', 'elite', 'master', 'all']) {
+      const a = acts['clue_scrolls_' + tier];
+      if (a && a.score > 0) clues[tier] = a.score;
+    }
+    return { bossKc, clues };
+  }
+
   // --- WiseOldMan API parser (CORS-enabled, designed for stat tracking) ---
   function parseWom(json) {
-    const snap = json.latestSnapshot?.data?.skills;
+    const data = json.latestSnapshot?.data;
+    const snap = data?.skills;
     if (!snap) throw new Error('WOM: no snapshot data');
     const skills = {};
     let totalLevel = 0, totalXp = 0;
@@ -83,9 +120,11 @@ const Hiscores = (() => {
     const overall = snap.overall || {};
     totalLevel = overall.level || 0;
     totalXp    = overall.experience || 0;
+    const extras = parseWomExtras(data);
     return {
       name: json.displayName || json.username || 'You',
       skills, totalLevel, totalXp,
+      bossKc: extras.bossKc, clues: extras.clues,
       fetchedAt: Date.now(),
       source: 'wom',
     };

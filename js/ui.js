@@ -721,6 +721,35 @@ const UI = (() => {
           <p style="margin:6px 0 0;"><a class="wiki-link" target="_blank" href="${WIKI(m.wiki || m.name)}">Wiki →</a></p>
         </div>`;
       }).join('')}
+
+      ${cluesSection(f2p)}
+    `;
+  }
+
+  function cluesSection(f2p) {
+    if (typeof CLUES === 'undefined') return '';
+    const tiers = CLUES.filter(c => !f2p || c.f2p);
+    const counts = (currentStats && currentStats.clues) || {};
+    const totalDone = Object.values(counts).reduce((s, n) => s + (n || 0), 0);
+    return `
+      <h3 style="margin-top:22px;">🗺️ Clue Scrolls (Treasure Trails)${totalDone ? ` — <span style="color:var(--pink-600);">${NUM(totalDone)} completed</span>` : ''}</h3>
+      <p style="color:var(--text-soft);">A steady side activity: gp, cosmetics, and a few real upgrades (Ranger boots, god books). Grab a Clue Scroll plugin to track steps. ✨</p>
+      <div class="grid-3">
+        ${tiers.map(c => {
+          const done = counts[c.womKey];
+          return `
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">${c.icon} ${esc(c.tier)} clue${c.f2p ? ' <span class="tag green" style="font-size:10px;">F2P</span>' : ' <span class="tag purple" style="font-size:10px;">MEMBERS</span>'}</div>
+              ${done != null ? `<span class="tag gold">${NUM(done)} done</span>` : `<span class="tag">${esc(c.steps)} steps</span>`}
+            </div>
+            <p style="margin:4px 0;font-size:13px;"><strong>Rewards:</strong> ${esc(c.rewards)}</p>
+            <p style="margin:4px 0;font-size:13px;color:var(--text-soft);"><strong>Where:</strong> ${esc(c.source)}</p>
+            <p style="margin:6px 0 0;color:var(--text-soft);">${esc(c.why)}</p>
+            <p style="margin:8px 0 0;"><a class="wiki-link" target="_blank" href="${WIKI('Treasure Trails')}">Treasure Trails guide →</a></p>
+          </div>`;
+        }).join('')}
+      </div>
     `;
   }
 
