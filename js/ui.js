@@ -108,6 +108,7 @@ const UI = (() => {
     renderLoadouts();
     renderDiariesTab();
     renderMinigames();
+    renderPath();
     renderAI();
   }
 
@@ -218,11 +219,21 @@ const UI = (() => {
       `;
     }
 
+    const pathNext = nextPathStep();
+    const pathBanner = pathNext ? `
+      <div class="card" style="background:linear-gradient(135deg,var(--pink-50),#fff8d0);cursor:pointer;" onclick="UI.showSection('path')">
+        <div style="font-weight:800;color:var(--pink-600);">🧭 Next step on your Path to a Bossing Main</div>
+        <div style="margin-top:4px;font-weight:700;">${esc(pathNext.step.label)}</div>
+        <div style="color:var(--text-soft);font-size:13px;margin-top:2px;">${esc(pathNext.step.detail || '')}</div>
+        <div style="font-size:12px;color:var(--pink-600);margin-top:6px;">Open The Path →</div>
+      </div>` : '';
+
     el.innerHTML = `
       <h2>💖 Next Up — for ${esc(currentStats.name)}</h2>
       <p style="color:var(--text-soft); margin-top:-6px;">
         You're combat <strong>${cb}</strong>. These are progressive — only stuff she can actually do <em>right now</em>. ✨
       </p>
+      ${pathBanner}
 
       <h3>✨ Do these now (top priority)</h3>
       ${recs.length === 0 ? '<p style="color:var(--text-soft);">All caught up! Check Coming Soon below ✨</p>' : ''}
@@ -1401,6 +1412,118 @@ const UI = (() => {
     `;
   }
 
+  // ============ PATH / ROADMAP ============
+  const ROADMAP_DONE_KEY = 'bvels10_roadmap_done_v1';
+  function loadRoadmapDone() { try { return new Set(JSON.parse(localStorage.getItem(ROADMAP_DONE_KEY) || '[]')); } catch { return new Set(); } }
+  function saveRoadmapDone(set) { localStorage.setItem(ROADMAP_DONE_KEY, JSON.stringify([...set])); }
+
+  function toggleRoadmapStep(id) {
+    const s = loadRoadmapDone();
+    if (s.has(id)) s.delete(id); else s.add(id);
+    saveRoadmapDone(s);
+    renderPath();
+    renderNext();
+  }
+
+  function questDoneByName(completed, name) {
+    if (completed.has(questNameToId(name))) return true;
+    const q = QUESTS.find(x => x.name === name);
+    return !!(q && completed.has(q.id));
+  }
+
+  // null = no detectable condition (manual-only); else true/false.
+  // Conditions are OR'd: any single indicator counts the step done (e.g. Waterfall
+  // is done if the quest is marked OR att/str are already 30). `quests` requires all.
+  function roadmapStepAutoDone(step, ctx) {
+    let has = false, any = false;
+    if (step.quest)  { has = true; if (questDoneByName(ctx.completed, step.quest)) any = true; }
+    if (step.quests) { has = true; if (step.quests.every(n => questDoneByName(ctx.completed, n))) any = true; }
+    if (step.skill)  { has = true; if (Object.entries(step.skill).every(([sid, lvl]) => (ctx.lvl[sid] || 1) >= lvl)) any = true; }
+    if (step.combat != null) { has = true; if (ctx.combat >= step.combat) any = true; }
+    if (step.boss)   { has = true; if (ctx.bossKc[step.boss] > 0) any = true; }
+    return has ? any : null;
+  }
+  function roadmapStepDone(step, ctx) {
+    if (ctx.manual.has(step.id)) return true;
+    return roadmapStepAutoDone(step, ctx) === true;
+  }
+
+  function roadmapCtx() {
+    const lvl = {};
+    for (const m of SKILL_META) lvl[m.id] = currentStats.skills[m.id]?.level || 1;
+    const combat = combatLevel(Object.fromEntries(SKILL_META.filter(m => m.combat).map(m => [m.id, lvl[m.id]])));
+    return { lvl, combat, completed: completedSet(), bossKc: currentStats.bossKc || {}, manual: loadRoadmapDone() };
+  }
+
+  // The single next step on the path (first not-done), for banners elsewhere.
+  function nextPathStep() {
+    if (typeof ROADMAP === 'undefined' || !currentStats) return null;
+    const ctx = roadmapCtx();
+    for (const ph of ROADMAP) for (const st of ph.steps) {
+      if (!roadmapStepDone(st, ctx)) return { step: st, phase: ph };
+    }
+    return null;
+  }
+
+  function renderPath() {
+    const el = sectionEl('path');
+    const ctx = roadmapCtx();
+    let total = 0, doneCount = 0;
+    let current = null;
+    // first pass: counts + current step
+    for (const ph of ROADMAP) for (const st of ph.steps) {
+      total++;
+      if (roadmapStepDone(st, ctx)) doneCount++;
+      else if (!current) current = st;
+    }
+    const pct = total ? Math.round((doneCount / total) * 100) : 0;
+
+    const phaseHtml = ROADMAP.map(ph => {
+      const phSteps = ph.steps.map(st => {
+        const done = roadmapStepDone(st, ctx);
+        const isCurrent = st === current;
+        const auto = roadmapStepAutoDone(st, ctx);
+        const icon = done ? '✅' : isCurrent ? '▶️' : '⬜';
+        return `
+          <div class="card" style="padding:10px 14px;margin:6px 0;${isCurrent ? 'border:2px solid var(--pink-400);box-shadow:0 2px 14px rgba(232,56,138,0.18);' : ''}${done ? 'opacity:.65;' : ''}">
+            <div style="display:flex;align-items:flex-start;gap:10px;">
+              <div style="font-size:18px;cursor:pointer;user-select:none;" onclick="UI.toggleRoadmapStep('${st.id}')" title="${done ? 'Mark not done' : 'Mark done'}">${icon}</div>
+              <div style="flex:1;">
+                <div style="font-weight:700;${done ? 'text-decoration:line-through;' : ''}">${esc(st.label)}${isCurrent ? ' <span class="tag gold" style="font-size:10px;">YOU ARE HERE</span>' : ''}</div>
+                <div style="color:var(--text-soft);font-size:13px;margin-top:2px;">${esc(st.detail || '')}</div>
+                <div style="margin-top:4px;font-size:12px;">
+                  ${auto === null ? '<span style="color:var(--text-faint);">tap the box to check off · </span>' : ''}
+                  ${st.wiki ? `<a class="wiki-link" target="_blank" href="${WIKI(st.wiki)}">Wiki →</a>` : ''}
+                </div>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+      const phDone = ph.steps.every(st => roadmapStepDone(st, ctx));
+      return `
+        <div style="margin:18px 0 4px;">
+          <h3 style="margin-bottom:2px;">${ph.icon} ${esc(ph.phase)} ${phDone ? '✅' : ''}</h3>
+          <p style="color:var(--text-soft);margin:0 0 6px;">${esc(ph.goal)}</p>
+          ${phSteps}
+        </div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <h2>🧭 Your Path to a Bossing Main</h2>
+      <p style="color:var(--text-soft);">The efficient, ordered route from here to endgame PvM. Steps auto-complete from your stats, quests, and boss KC — tap any ⬜/✅ to override. ✨</p>
+      <div class="card" style="background:linear-gradient(135deg,var(--pink-50),#fff8d0);">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <div style="font-weight:800;color:var(--pink-600);">Overall progress: ${doneCount}/${total} steps (${pct}%)</div>
+          <div style="flex:1;min-width:160px;max-width:340px;height:14px;background:#fff;border-radius:999px;overflow:hidden;border:1px solid var(--card-border);">
+            <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--pink-400),var(--pink-500));"></div>
+          </div>
+        </div>
+        ${current ? `<div style="margin-top:10px;font-size:14px;">▶️ <strong>Do this next:</strong> ${esc(current.label)}<br><span style="color:var(--text-soft);font-size:13px;">${esc(current.detail || '')}</span></div>` : '<div style="margin-top:10px;">🎉 You\'ve completed the whole roadmap — you\'re a bossing main! 💖</div>'}
+      </div>
+      ${phaseHtml}
+    `;
+  }
+
   // ============ AI ASSISTANT ============
   function renderAI() {
     const el = sectionEl('ai');
@@ -1909,7 +2032,7 @@ const UI = (() => {
            toggleChatPanel, renderFloatingChat, chatSuggest, chatSend,
            showAISettings, onProviderChange, saveAISettings,
            applyAction, applyActions, resolveCompletable,
-           resumeLiveSync, toggleAccountMode,
+           resumeLiveSync, toggleAccountMode, toggleRoadmapStep,
            attachImage, handleChatPaste, clearPendingImage,
            renderAllPublic: renderAll };
 })();
