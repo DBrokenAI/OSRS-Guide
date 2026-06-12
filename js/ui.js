@@ -603,29 +603,61 @@ const UI = (() => {
   }
 
   // ============ BOSSES ============
+  const BOSS_TIER_LABEL = {
+    early: '🌱 Early / beginner', mid: '⚔️ Mid-game', slayer: '💀 Slayer bosses',
+    gwd: '🛡️ God Wars Dungeon', dt2: '🏜️ Desert Treasure II', endgame: '🔥 Endgame', raid: '🐲 Raids',
+  };
+  const BOSS_TIER_ORDER = ['early', 'mid', 'slayer', 'gwd', 'dt2', 'endgame', 'raid'];
+
+  function bossCard(b, lockedMode) {
+    const gap = lockedMode && b._gap ? formatMiniGap(b._gap) : '';
+    const kc = bossKcFor(b);
+    return `
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">${b.icon || '👑'} ${esc(b.name)}${b.f2p ? ' <span class="tag green" style="font-size:10px;">F2P</span>' : ''}</div>
+          <span class="tag ${lockedMode ? 'locked' : 'ready'}">${lockedMode ? 'LOCKED' : 'READY ✨'}</span>
+        </div>
+        ${kc != null ? `<p style="margin:2px 0;font-size:13px;"><strong>Your KC:</strong> <span style="color:var(--pink-600);font-weight:700;">${NUM(kc)}</span></p>` : ''}
+        <p style="margin:4px 0;font-size:13px;"><strong>Stats:</strong> ${esc(b.stats || '')}</p>
+        <p style="margin:4px 0;font-size:13px;"><strong>Location:</strong> ${esc(b.location || '')}</p>
+        <p style="margin:4px 0;font-size:13px;"><strong>Loot:</strong> ${esc(b.loot || '')}</p>
+        ${b.questNote ? `<p style="margin:4px 0;font-size:13px;color:var(--text-soft);"><strong>Requires:</strong> ${esc(b.questNote)}</p>` : ''}
+        ${gap ? `<p style="margin:4px 0;font-size:13px;color:var(--pink-600);"><strong>Unlock at:</strong> ${gap}</p>` : ''}
+        <p style="margin:6px 0 0;color:var(--text-soft);">${esc(b.why || '')}</p>
+        <p style="margin:8px 0 0;"><a class="wiki-link" target="_blank" href="${WIKI(b.wiki || b.name)}">Wiki guide →</a></p>
+      </div>`;
+  }
+
   function renderBosses() {
     const el = sectionEl('bosses');
-    const ready = Recommender.readyBosses(currentStats).map(b => b.id);
+    const ready = Recommender.readyBosses(currentStats);
+    const locked = Recommender.lockedBosses(currentStats);
+    let readyHtml = '';
+    for (const t of BOSS_TIER_ORDER) {
+      const group = ready.filter(b => b.tier === t);
+      if (!group.length) continue;
+      readyHtml += `<h4 style="margin:16px 0 6px;color:var(--text-soft);">${BOSS_TIER_LABEL[t] || t}</h4>
+        <div class="grid-3">${group.map(b => bossCard(b, false)).join('')}</div>`;
+    }
     el.innerHTML = `
       <h2>👑 Boss Ladder</h2>
-      <p style="color:var(--text-soft);">Sequenced from easiest to hardest. ✨ = next one ready for you.</p>
-      ${BOSSES.map(b => {
-        const isReady = ready.includes(b.id);
-        return `
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title">${isReady ? '✨' : '🔒'} ${esc(b.name)}</div>
-              <span class="tag ${isReady ? 'ready' : 'locked'}">${isReady ? 'READY' : 'LOCKED'}</span>
-            </div>
-            <p style="margin:4px 0;font-size:13px;"><strong>Stats:</strong> ${esc(b.suggestedStats)}</p>
-            <p style="margin:4px 0;font-size:13px;"><strong>Location:</strong> ${esc(b.location)}</p>
-            <p style="margin:4px 0;font-size:13px;"><strong>Loot:</strong> ${esc(b.loot)}</p>
-            <p style="margin:6px 0 0;color:var(--text-soft);">${esc(b.why)}</p>
-            <p style="margin:8px 0 0;"><a class="wiki-link" target="_blank" href="${WIKI(b.wiki || b.name)}">Wiki guide →</a></p>
-          </div>
-        `;
-      }).join('')}
+      <p style="color:var(--text-soft);">
+        Every boss, gated by <em>your</em> stats. ✅ = your combat/skills are high enough now — still check the
+        <strong>Requires</strong> line for a quest/slayer prereq. Sorted easiest → hardest. ✨
+      </p>
+      <h3>✅ Ready by your stats (${ready.length})</h3>
+      ${readyHtml || '<p>Train your combat up a bit to unlock your first boss!</p>'}
+      <h3 style="margin-top:20px;">🔒 Coming up (closest first)</h3>
+      <div class="grid-3">${locked.map(b => bossCard(b, true)).join('')}</div>
     `;
+  }
+
+  // Boss KC from hiscores (filled in workstream C). Returns a number or null.
+  function bossKcFor(b) {
+    const map = currentStats && currentStats.bossKc;
+    if (!map) return null;
+    return map[b.id] != null ? map[b.id] : null;
   }
 
   // ============ MONEY ============

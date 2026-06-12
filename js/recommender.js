@@ -184,24 +184,28 @@ const Recommender = (() => {
     return result;
   }
 
+  // Bosses gate on STATS only (combat + skill incl. slayer). Quest reqs are advisory.
   function bossReady(boss, stats) {
-    const cb = combatLevel(stats.skills && Object.fromEntries(SKILL_META.filter(m => m.combat).map(m => [m.id, stats.skills[m.id]?.level || 1])));
     const r = boss.reqs || {};
-    if (r.combat && cb < r.combat) return false;
-    if (r.att   && (stats.skills.attack?.level   || 1) < r.att) return false;
-    if (r.str   && (stats.skills.strength?.level || 1) < r.str) return false;
-    if (r.def   && (stats.skills.defence?.level  || 1) < r.def) return false;
-    if (r.range && (stats.skills.ranged?.level   || 1) < r.range) return false;
-    if (r.mage  && (stats.skills.magic?.level    || 1) < r.mage) return false;
-    if (r.prayer&& (stats.skills.prayer?.level   || 1) < r.prayer) return false;
-    if (r.range_or_mage) {
-      if ((stats.skills.ranged?.level || 1) < r.range_or_mage && (stats.skills.magic?.level || 1) < r.range_or_mage) return false;
+    if (r.combat && currentCombatLevel(stats) < r.combat) return false;
+    if (r.skill) {
+      for (const [sid, lvl] of Object.entries(r.skill)) {
+        if ((stats.skills[sid]?.level || 1) < lvl) return false;
+      }
     }
     return true;
   }
 
   function readyBosses(stats) {
-    return BOSSES.filter(b => bossReady(b, stats));
+    return BOSSES.filter(b => bossReady(b, stats))
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+  }
+  function lockedBosses(stats) {
+    return BOSSES.filter(b => !bossReady(b, stats))
+      .map(b => Object.assign({}, b, {
+        _gap: readinessGap({ combat: b.reqs?.combat, skill: b.reqs?.skill }, stats, new Set()),
+      }))
+      .sort((a, b) => a._gap.total - b._gap.total || (a.order || 0) - (b.order || 0));
   }
 
   // ---------- "What to do next" — only show what she can actually do NOW ----------
@@ -648,7 +652,7 @@ const Recommender = (() => {
   }
 
   return { topRecommendations, comingUpRecommendations, lifetimeGoals,
-           readyQuests, lockedQuests, readyBosses,
+           readyQuests, lockedQuests, readyBosses, lockedBosses,
            readyMasterTasks, nearMasterTasks, nearQuests,
            readyMinigames, lockedMinigames,
            currentTier, nextTier, gearForLevel, readyDiaryTasks,
