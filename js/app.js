@@ -83,7 +83,33 @@
   on('global-search', 'input', () => UI.handleSearch());
   on('chat-fab', 'click', () => UI.toggleChatPanel());
 
+  // Saved username (legacy key prefix kept so existing saved data keeps working).
+  const USERNAME_KEY = 'bvels10_last_username';
+  const savedUsername = () => {
+    try { return (localStorage.getItem(USERNAME_KEY) || '').trim(); } catch (_) { return ''; }
+  };
+
+  // No username yet: nothing to fetch or poll. Show saved manual stats if there
+  // are any, otherwise ask for a username.
+  function showNoUsernameState() {
+    Hiscores.stopPolling();
+    const manual = Hiscores.hasManual() ? Hiscores.loadManual() : null;
+    if (manual) { UI.setStats(manual, null); return; }
+    document.querySelectorAll('#main .section').forEach(sec => {
+      sec.innerHTML = '<h2>👋 Welcome to OSRS Guide</h2>' +
+        '<p style="color:var(--text-soft);">Enter your OSRS username in the box at the top right and press Enter to load your stats — ' +
+        'or click ✏️ to type your levels in manually.</p>';
+    });
+    const lastUpd = document.getElementById('last-update');
+    if (lastUpd) lastUpd.textContent = 'enter a username';
+    document.getElementById('username-input')?.focus();
+  }
+
   async function startForUser(username) {
+    username = String(username || '').trim();
+    if (!username) { showNoUsernameState(); return; }
+    // Remember the name as soon as it is entered — there is no built-in default to fall back to.
+    try { localStorage.setItem(USERNAME_KEY, username); } catch (_) {}
     UI.toast(`✨ Fetching ${username}'s stats…`);
     let usedManual = false;
 
@@ -119,7 +145,6 @@
             if (totalXp > 1000) UI.toast(`✨ +${totalXp.toLocaleString()} XP since last check 💕`);
           }
         }
-        localStorage.setItem('bvels10_last_username', username);
       });
 
       // After ~5 seconds, if no live fetch succeeded and no manual stats, prompt manually
@@ -136,12 +161,13 @@
   }
 
   window.AppBoot = { refetch: () => {
-    const u = document.getElementById('username-input').value.trim() || 'bvels10';
+    const u = document.getElementById('username-input').value.trim() || savedUsername();
+    if (!u) UI.toast('Enter your OSRS username (top right) to load live stats 💕');
     startForUser(u);
   }};
 
-  // Boot
-  const startName = localStorage.getItem('bvels10_last_username') || 'bvels10';
+  // Boot — no default player: with no saved username the app waits for one.
+  const startName = savedUsername();
   document.getElementById('username-input').value = startName;
   startForUser(startName);
 

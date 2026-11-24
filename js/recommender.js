@@ -34,7 +34,7 @@ const Recommender = (() => {
         if (!completedIds.has(qid)) return false;
       }
     }
-    // Practical combat req — can she actually beat the quest fights?
+    // Practical combat req — can the player actually beat the quest fights?
     if (quest.practicalCombat) {
       if (currentCombatLevel(stats) < quest.practicalCombat) return false;
     }
@@ -129,7 +129,7 @@ const Recommender = (() => {
     return { total, maxSingle, missing };
   }
 
-  // "Coming Up" — ALL locked items sorted by how close she is. Each shows "Do at X" label.
+  // "Coming Up" — ALL locked items sorted by how close the player is. Each shows "Do at X" label.
   function nearMasterTasks(stats, completedIds) {
     return MASTER_TASKS
       .filter(t => !completedIds.has(t.id))
@@ -222,7 +222,7 @@ const Recommender = (() => {
       .sort((a, b) => a._gap.total - b._gap.total || (a.order || 0) - (b.order || 0));
   }
 
-  // ---------- "What to do next" — only show what she can actually do NOW ----------
+  // ---------- "What to do next" — only show what the player can actually do NOW ----------
   function topRecommendations(stats, completedQuestIds) {
     const recs = [];
     const cb = currentCombatLevel(stats);
@@ -246,7 +246,7 @@ const Recommender = (() => {
       });
     }
 
-    // Helper: dynamic "Level X → Y" based on her actual XP + quest reward
+    // Helper: dynamic "Level X → Y" based on the player's actual XP + quest reward
     function projectLevelLabel(skillId, xpReward) {
       const sk = stats.skills[skillId];
       if (!sk) return `+${xpReward.toLocaleString()} XP`;
@@ -349,7 +349,7 @@ const Recommender = (() => {
       });
     }
 
-    // ===== 3. PRACTICAL QUESTS SHE CAN DO RIGHT NOW =====
+    // ===== 3. PRACTICAL QUESTS THE PLAYER CAN DO RIGHT NOW =====
     const readyQs = readyQuests(stats, completedQuestIds).slice(0, 4);
     for (const q of readyQs) {
       if (recs.some(r => r.id === q.id)) continue;
@@ -363,13 +363,13 @@ const Recommender = (() => {
       });
     }
 
-    // ===== 4. MASTER TASKS SHE QUALIFIES FOR =====
+    // ===== 4. MASTER TASKS THE PLAYER QUALIFIES FOR =====
     const readyTasks = readyMasterTasks(stats, completedQuestIds)
       .filter(t => t.category !== 'milestone')
       .slice(0, 5);
     for (const t of readyTasks) {
       if (recs.some(r => r.id === t.id)) continue;
-      // Dynamic course pick for Graceful pieces based on her current Agility
+      // Dynamic course pick for Graceful pieces based on the player's current Agility
       let howText = t.how || '';
       if (t.id && t.id.startsWith('graceful_') && t.marksNeeded) {
         const isGloves = t.id === 'graceful_gloves';
@@ -386,7 +386,7 @@ const Recommender = (() => {
     }
 
     // ===== 4b. XP-SHORTCUT QUESTS — surface every uncompleted quest that gives
-    //          XP in a skill she's still leveling. She marks done → XP credited →
+    //          XP in a skill the player is still leveling. They mark done → XP credited →
     //          next thing unlocks. Fully progressive chain. =====
     const xpShortcutSet = new Set();
     for (const q of QUESTS) {
@@ -394,7 +394,7 @@ const Recommender = (() => {
       if (completedQuestIds.has(q.id)) continue;
       if (!passesMode(q, true)) continue;
       if (!questQualifies(q, stats, completedQuestIds)) continue;
-      // Does the quest target a skill she's still leveling (lvl < 70)?
+      // Does the quest target a skill the player is still leveling (lvl < 70)?
       const helpful = Object.entries(q.xpRewards).some(([sid, xp]) => {
         const cur = stats.skills[sid]?.level || 1;
         return cur < 70 && xp >= 100;
@@ -421,7 +421,7 @@ const Recommender = (() => {
       });
     }
 
-    // ===== 4c. HIGH-IMPACT MINIGAMES she can do right now =====
+    // ===== 4c. HIGH-IMPACT MINIGAMES the player can do right now =====
     const readyMgs = readyMinigames(stats, completedQuestIds)
       .filter(m => (m.priority || 9) <= 2)
       .slice(0, 4);
@@ -439,7 +439,7 @@ const Recommender = (() => {
       });
     }
 
-    // ===== 5. CURRENT BEST METHOD for her weakest non-combat skills =====
+    // ===== 5. CURRENT BEST METHOD for the player's weakest non-combat skills =====
     // Show ALL non-combat skills under level 20 — beginners need every method spelled out.
     // For higher levels, just show the 3 weakest.
     const allWeak = SKILL_META
@@ -592,7 +592,7 @@ const Recommender = (() => {
   }
 
   function readyDiaryTasks(_stats) {
-    // We don't know which specific tasks she's done; show them all as a checklist.
+    // We don't know which specific tasks the player has done; show them all as a checklist.
     return DIARIES_EASY;
   }
 

@@ -42,7 +42,7 @@ const AIChat = (() => {
         'Authorization': `Bearer ${key}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': location.origin,
-        'X-Title': 'bvels10 OSRS Guide',
+        'X-Title': 'OSRS Guide',
       }),
     },
     openai: {
@@ -95,17 +95,19 @@ const AIChat = (() => {
   function all() { return messages.slice(); }
   function clear() { messages = []; save(); }
 
-  // Build a fresh system prompt with her live context
+  // Build a fresh system prompt with the player's live context
   function buildSystemPrompt(stats, completedQuestIds) {
     const cb = stats ? combatLevel(Object.fromEntries(SKILL_META.filter(m => m.combat).map(m => [m.id, stats.skills[m.id]?.level || 1]))) : '?';
     const statLines = SKILL_META.map(m => `${m.name} ${stats?.skills?.[m.id]?.level || 1}`).join(', ');
     const recentJournal = Journal.all().slice(0, 5).map(e => `- ${e.text}`).join('\n');
     const questCount = completedQuestIds?.size || 0;
+    // Whoever is currently loaded: the fetched/manual display name, else the username typed in the header.
+    const playerName = stats?.name || document.getElementById('username-input')?.value.trim() || '(not set)';
 
-    return `You are a friendly, encouraging Old School RuneScape guide for a beginner player. Keep answers concise (2-4 short paragraphs max), accurate, and personalized to her stats. Use 💖 ✨ sparingly to keep the vibe fun. If unsure of an exact number/level, say so rather than guess.
+    return `You are a friendly, encouraging Old School RuneScape guide for a beginner player. Keep answers concise (2-4 short paragraphs max), accurate, and personalized to the player's stats. Use 💖 ✨ sparingly to keep the vibe fun. If unsure of an exact number/level, say so rather than guess.
 
 PLAYER CONTEXT (live):
-- Username: ${stats?.name || 'bvels10'}
+- Username: ${playerName}
 - Combat level: ${cb}
 - Total level: ${stats?.totalLevel || '?'}
 - Quests marked complete: ${questCount}
@@ -115,28 +117,28 @@ RECENT ACTIVITY:
 ${recentJournal || '(nothing yet)'}
 
 INSTRUCTIONS:
-- Reference her specific stats when relevant ("at your Magic 1, the best thing to do is...").
-- Suggest concrete next actions she can take in-game right now.
-- If she asks about a quest/boss/item, give: requirements, location, and a 1-line tip.
-- If she asks "what should I do next?" — pick ONE thing based on her stats and explain why.
-- Don't bombard her with options. Beginner-friendly tone.
+- Reference the player's specific stats when relevant ("at your Magic 1, the best thing to do is...").
+- Suggest concrete next actions the player can take in-game right now.
+- If the player asks about a quest/boss/item, give: requirements, location, and a 1-line tip.
+- If the player asks "what should I do next?" — pick ONE thing based on their stats and explain why.
+- Don't bombard the player with options. Beginner-friendly tone.
 - Format with short paragraphs and bullet points; don't write walls of text.
 
 ACTIONS — YOU CAN EDIT THE PAGE:
-When she tells you something that should change her saved data, DO IT by adding a
+When the player tells you something that should change their saved data, DO IT by adding a
 fenced code block at the very end of your reply, tagged osrs-actions, containing a
 JSON array. The app executes it and updates every tab. Supported actions:
-- {"type":"setLevel","skill":"prayer","level":43}        // she leveled up / corrected a level
-- {"type":"markQuest","name":"Witch's House","done":true} // she finished (or "done":false to undo) a quest
+- {"type":"setLevel","skill":"prayer","level":43}        // the player leveled up / corrected a level
+- {"type":"markQuest","name":"Witch's House","done":true} // the player finished (or "done":false to undo) a quest
 - {"type":"markTask","name":"Stronghold of Security","done":true} // a non-quest milestone/task
 - {"type":"fixData","target":"questXp","quest":"Witch's Potion","skill":"magic","xp":325} // correct wrong data
 - {"type":"fixData","target":"questReq","quest":"Dragon Slayer","skill":"crafting","level":8}
-SCREENSHOTS: if she attaches an image of her in-game Skills panel, read EVERY skill
+SCREENSHOTS: if the player attaches an image of their in-game Skills panel, read EVERY skill
 level you can see (the small number on each skill icon) and emit one setLevel action
 per skill in a single osrs-actions block. Briefly confirm the few highest levels you
-read so she can sanity-check. If a number is blurry/unreadable, skip that skill rather
+read so the player can sanity-check. If a number is blurry/unreadable, skip that skill rather
 than guess.
-Rules: only emit actions she clearly asked for. Use real OSRS skill ids (attack, strength,
+Rules: only emit actions the player clearly asked for. Use real OSRS skill ids (attack, strength,
 defence, hitpoints, ranged, prayer, magic, cooking, woodcutting, fletching, fishing,
 firemaking, crafting, smithing, mining, herblore, agility, thieving, slayer, farming,
 runecraft, hunter, construction). Confirm what you changed in plain words BEFORE the block.

@@ -90,7 +90,7 @@ js/
 
 ## Status and limitations
 
-- A personal project built for one specific player; a default username and some copy are hard-coded for that player. Any username can be entered.
+- Started as a personal project for one player and since generalised: there is no default username, and the app waits for one to be entered. `localStorage` keys keep a legacy prefix so data saved by the earlier version still loads.
 - Game data is hand-maintained in `data.js` and `extras.js` and goes stale as the game is updated.
 - No automated tests, linting or build pipeline.
 - `ui.js` renders with template strings and inline styles and re-renders every section on each stats update.

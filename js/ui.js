@@ -283,7 +283,7 @@ const UI = (() => {
     el.innerHTML = `
       <h2>💖 Next Up — for ${esc(currentStats.name)}</h2>
       <p style="color:var(--text-soft); margin-top:-6px;">
-        You're combat <strong>${cb}</strong>. These are progressive — only stuff she can actually do <em>right now</em>. ✨
+        You're combat <strong>${cb}</strong>. These are progressive — only stuff you can actually do <em>right now</em>. ✨
       </p>
       ${pathBanner}
 
@@ -466,7 +466,7 @@ const UI = (() => {
       <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
         <div>
           <strong>📝 Bulk-mark your completed quests</strong>
-          <div class="card-sub">${completed.size} marked so far. Open the editor to tick everything she's already done.</div>
+          <div class="card-sub">${completed.size} marked so far. Open the editor to tick everything you've already done.</div>
         </div>
         <button class="btn" onclick="UI.showBulkQuestEditor()">Open Quest Editor ✨</button>
       </div>
@@ -987,7 +987,7 @@ const UI = (() => {
 
   // ---------- panic modal ----------
   function showPanic() {
-    if (!currentStats) { toast('Loading your stats… try again in a sec 💕'); return; }
+    if (!currentStats) { toast('No stats yet — enter a username (top right), or try again in a sec 💕'); return; }
     const completed = completedSet();
     const recs = Recommender.topRecommendations(currentStats, completed).slice(0, 3);
     const html = `
@@ -1028,7 +1028,7 @@ const UI = (() => {
         <div class="modal" style="max-width:720px;max-height:90vh;display:flex;flex-direction:column;">
           <h3>📝 Mark Completed Quests</h3>
           <p style="color:var(--text-soft);font-size:13px;margin:0 0 8px;">
-            Tick every quest she's already finished. Saves instantly. Recommendations update when you close. 💕
+            Tick every quest you've already finished. Saves instantly. Recommendations update when you close. 💕
           </p>
           <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
             <input id="quest-search" placeholder="🔍 search…" oninput="UI.filterQuestEditor()"
@@ -1115,12 +1115,12 @@ const UI = (() => {
         <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto;">
           <h3>✏️ Enter Your Stats Manually</h3>
           <p style="color:var(--text-soft);font-size:13px;">
-            Use this if Hiscores isn't loading. Type her current level for each skill — XP is calculated for you.
+            Use this if Hiscores isn't loading. Type your current level for each skill — XP is calculated for you.
             Saves automatically. 💕
           </p>
           <div style="margin:10px 0;">
             <label style="font-size:12px;color:var(--text-soft);font-weight:700;">DISPLAY NAME</label><br>
-            <input id="manual-name" value="${esc(existing.name || currentStats?.name || 'bvels10')}"
+            <input id="manual-name" value="${esc(existing.name || currentStats?.name || document.getElementById('username-input')?.value.trim() || '')}"
                    style="width:100%;padding:8px 12px;border-radius:10px;border:1px solid var(--card-border);font-family:var(--font-body);font-weight:600;">
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
@@ -1150,7 +1150,7 @@ const UI = (() => {
   }
 
   function saveManualEntry() {
-    const stats = { name: (document.getElementById('manual-name').value || 'bvels10').trim() };
+    const stats = { name: (document.getElementById('manual-name').value || '').trim() };
     for (const m of SKILL_META) {
       const lvl = parseInt(document.getElementById('manual-' + m.id).value) || 1;
       stats[m.id] = { level: Math.max(1, Math.min(99, lvl)) };
@@ -2240,7 +2240,7 @@ const UI = (() => {
       <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
         <div class="modal">
           <h3>🎲 Try this!</h3>
-          <p style="color:var(--text-soft);font-size:13px;">Random pick from things she qualifies for right now. ✨</p>
+          <p style="color:var(--text-soft);font-size:13px;">Random pick from things you qualify for right now. ✨</p>
           <div style="margin:12px 0;padding:14px;background:var(--pink-50);border-radius:12px;">
             <div style="font-size:20px;font-weight:700;">${pick.icon || '📜'} ${esc(pick.name)}</div>
             <p style="margin:8px 0 0;color:var(--text-soft);">${esc(pick.why || '')}</p>

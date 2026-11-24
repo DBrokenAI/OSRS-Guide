@@ -22,7 +22,7 @@ try {
     exit 1
 }
 
-Write-Host "✨ bvels10's Adventure Guide is live at $url" -ForegroundColor Magenta
+Write-Host "✨ OSRS Guide is live at $url" -ForegroundColor Magenta
 Write-Host "   (Close this window to stop the server.)"
 Write-Host ""
 

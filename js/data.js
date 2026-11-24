@@ -7,6 +7,36 @@
 
 const WIKI = (page) => 'https://oldschool.runescape.wiki/w/' + encodeURIComponent(page.replace(/ /g, '_'));
 
+// ---------- Storage keys / legacy username migration ----------
+// Every localStorage key in this app keeps the legacy 'bvels10_' prefix for
+// backward compatibility: renaming the keys would orphan existing saved progress.
+//
+// One-time migration. The app used to fall back to a hard-coded default player
+// when no username was saved. That default is gone, so a browser that already
+// holds data from that era (but never stored a username) gets the old default
+// written as its saved username — its experience is unchanged. Fresh browsers
+// get nothing and start with an empty username field.
+// Must run before any other script writes to localStorage (this is the first
+// script that touches it), otherwise a brand-new visitor would look "legacy".
+(function migrateLegacyUsername() {
+  const LEGACY_NAME = 'bvels10';
+  const DONE_KEY = 'osrs_guide_username_migrated_v1';
+  try {
+    if (localStorage.getItem(DONE_KEY)) return;
+    const prefix = LEGACY_NAME + '_';
+    const userKey = prefix + 'last_username';
+    if (!localStorage.getItem(userKey)) {
+      let hasLegacyData = false;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(prefix)) { hasLegacyData = true; break; }
+      }
+      if (hasLegacyData) localStorage.setItem(userKey, LEGACY_NAME);
+    }
+    localStorage.setItem(DONE_KEY, '1');
+  } catch (_) {}
+})();
+
 // ---------- Account mode (all vs F2P) ----------
 // When 'f2p', recommendations/tabs hide members-only content.
 const AccountMode = (() => {
@@ -71,9 +101,9 @@ function levelFromXp(xp) {
   return 1;
 }
 
-// Pick the single best Marks-of-Grace course for HER current Agility level.
+// Pick the single best Marks-of-Grace course for the player's current Agility level.
 // isFirstPiece = the gloves card; only it shows the "train to 10 first" warning since
-// by the time she's at later pieces she'll already be past level 10.
+// by the time the player is at later pieces they'll already be past level 10.
 function gracefulCourseFor(agilityLevel, marksNeeded, isFirstPiece) {
   if (isFirstPiece && agilityLevel < 10) {
     return `⚠️ <strong>You're Agility ${agilityLevel} — rooftops need lvl 10+ to drop Marks of Grace.</strong> ` +
@@ -81,7 +111,7 @@ function gracefulCourseFor(agilityLevel, marksNeeded, isFirstPiece) {
            `Then come back here: at level 10 you'll do Draynor Rooftop (~13 marks/hr → ~${(marksNeeded/13).toFixed(1)} hrs for ${marksNeeded} marks). ` +
            `Buy from Grace at Rogues' Den (Burthorpe basement).`;
   }
-  // Floor at Draynor for sub-10 (she'll be 10+ by the time she sees these pieces)
+  // Floor at Draynor for sub-10 (the player will be 10+ by the time they see these pieces)
   let course, marksPerHr, lvlNote = '';
   const effLvl = Math.max(10, agilityLevel);
   if (agilityLevel < 10) lvlNote = ` (once you hit Agility 10)`;
@@ -643,7 +673,7 @@ const MASTER_TASKS = [
   //   Rellekka (80+):        ~28 marks/hr
   //   Ardougne (90+):        ~30 marks/hr
   // 🌸 Graceful — 6 separate tasks, all available, spread across priorities so they
-  // interleave with quests/other tasks instead of clustering. She does them whenever
+  // interleave with quests/other tasks instead of clustering. The player does them whenever
   // it feels natural — between quests, slayer breaks, etc.
   { id: 'graceful_gloves', category: 'gear', icon: '🧤', priority: 1,
     name: 'Graceful gloves (30 marks)',
